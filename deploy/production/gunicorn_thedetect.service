@@ -1,0 +1,25 @@
+[Unit]
+Description=Gunicorn for theDetect
+After=network.target
+
+[Service]
+Type=notify
+PermissionsStartOnly=true
+User=cskang
+Group=www-data
+WorkingDirectory=/home/cskang/ganzskang/theDetect
+RuntimeDirectory=thedetect
+RuntimeDirectoryMode=0775
+ExecStartPre=/bin/rm -f /run/gunicorn_thedetect.sock
+ExecStartPre=/bin/ln -s /run/thedetect/gunicorn.sock /run/gunicorn_thedetect.sock
+Environment=DJANGO_SETTINGS_MODULE=theDetect.settings
+EnvironmentFile=/etc/thedetect/thedetect.env
+ExecStart=/home/cskang/miniconda3/envs/dj5/bin/gunicorn --config /home/cskang/ganzskang/theDetect/deploy/production/gunicorn_thedetect.config.py theDetect.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+KillMode=mixed
+TimeoutStopSec=5
+
+[Install]
+WantedBy=multi-user.target

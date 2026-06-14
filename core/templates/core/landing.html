@@ -1,0 +1,849 @@
+{% load static %}
+<!doctype html>
+<html lang="ko" class="h-full" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>theDetect</title>
+  <script>
+    (function () {
+      const stored = localStorage.getItem('mdetect-theme');
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const dark = stored ? stored === 'dark' : prefersDark;
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    :root {
+      --landing-bg: #f7f2ea;
+      --landing-top: rgba(255, 255, 255, .8);
+      --landing-text: #2f2a25;
+      --landing-muted: #7a7168;
+      --landing-card: rgba(255, 255, 255, .95);
+      --landing-soft: rgba(255, 255, 255, .7);
+      --landing-field: #fffdf8;
+      --landing-border: #ded6ca;
+      --landing-accent: #4f5b4a;
+      --landing-sage: #aebbaa;
+      --landing-rose: #e6a1ae;
+    }
+    [data-theme="dark"] {
+      --landing-bg: #0f172a;
+      --landing-top: rgba(2, 6, 23, .78);
+      --landing-text: #e5e7eb;
+      --landing-muted: #94a3b8;
+      --landing-card: rgba(17, 24, 39, .95);
+      --landing-soft: rgba(17, 24, 39, .82);
+      --landing-field: #111827;
+      --landing-border: #243244;
+      --landing-accent: #bfdbfe;
+      --landing-sage: #60a5fa;
+      --landing-rose: #e6a1ae;
+    }
+    body { background: var(--landing-bg); color: var(--landing-text); }
+    .landing-top { background: linear-gradient(to bottom, var(--landing-top), transparent); }
+    .landing-card { background: var(--landing-card); border-color: var(--landing-border); }
+    .landing-soft { background: var(--landing-soft); border-color: var(--landing-border); }
+    .landing-muted { color: var(--landing-muted); }
+    .landing-accent { color: var(--landing-accent); }
+    .landing-field { background: var(--landing-field); border-color: var(--landing-border); color: var(--landing-text); }
+    .animated-conveyor { background: var(--landing-bg); }
+    .conveyor-stage {
+      position: relative;
+      display: grid;
+      grid-template-columns: 116px minmax(0, 1fr) 132px;
+      gap: 18px;
+      align-items: end;
+    }
+    .phone-station {
+      position: relative;
+      min-height: 246px;
+      border-radius: 28px;
+      background: var(--landing-bg);
+      z-index: 6;
+    }
+    .detect-phone {
+      position: absolute;
+      left: 38px;
+      top: 2px;
+      width: 32px;
+      height: 150px;
+      border-radius: 14px;
+      border: 1px solid rgba(191, 219, 254, .50);
+      background:
+        linear-gradient(90deg, rgba(248,250,252,.30), rgba(96,165,250,.12) 34%, rgba(2,6,23,.42) 100%),
+        linear-gradient(180deg, #475569 0%, #1e293b 48%, #0f172a 100%);
+      box-shadow:
+        0 18px 28px rgba(15, 23, 42, .25),
+        0 0 0 3px rgba(96,165,250,.12),
+        inset 6px 0 7px rgba(255,255,255,.18),
+        inset -5px 0 9px rgba(0,0,0,.34);
+      transform: rotate(30deg);
+      transform-origin: 50% 18px;
+      z-index: 7;
+    }
+    .detect-phone::before {
+      content: "";
+      position: absolute;
+      left: 6px;
+      top: 14px;
+      width: 6px;
+      height: 104px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(248,250,252,.56), rgba(96,165,250,.12));
+    }
+    .detect-phone::after {
+      content: "";
+      position: absolute;
+      left: 11px;
+      bottom: 12px;
+      width: 10px;
+      height: 3px;
+      border-radius: 999px;
+      background: rgba(226, 232, 240, .38);
+    }
+    .phone-lens {
+      position: absolute;
+      top: 18px;
+      right: -7px;
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 38% 35%, #f8fafc 0 12%, #93c5fd 13% 38%, #172554 39% 100%);
+      border: 2px solid rgba(226, 232, 240, .68);
+      box-shadow: 0 0 0 5px rgba(96,165,250,.18), 0 0 22px rgba(96,165,250,.92);
+      z-index: 3;
+    }
+    .phone-beam {
+      position: absolute;
+      left: 67px;
+      top: -15px;
+      width: min(34vw, 310px);
+      height: 104px;
+      transform-origin: left center;
+      transform: rotate(24deg);
+      clip-path: polygon(0 47%, 100% 0, 100% 100%, 0 53%);
+      background:
+        linear-gradient(90deg, rgba(96,165,250,.38), rgba(96,165,250,.12) 48%, rgba(96,165,250,0)),
+        repeating-linear-gradient(90deg, rgba(248,250,252,.24) 0 3px, transparent 3px 28px);
+      filter: blur(.2px);
+      opacity: .72;
+      animation: scan-beam 2.4s ease-in-out infinite;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .phone-scan-dot {
+      position: absolute;
+      left: 81px;
+      top: 35px;
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #bfdbfe;
+      box-shadow: 0 0 16px rgba(96,165,250,.95);
+      animation: scan-dot 2.4s ease-in-out infinite;
+      z-index: 5;
+    }
+    [data-theme="dark"] .detect-phone {
+      border-color: rgba(191, 219, 254, .62);
+      background:
+        linear-gradient(90deg, rgba(248,250,252,.34), rgba(96,165,250,.18) 34%, rgba(2,6,23,.48) 100%),
+        linear-gradient(180deg, #64748b 0%, #243244 48%, #0b1220 100%);
+      box-shadow:
+        0 18px 28px rgba(2, 6, 23, .50),
+        0 0 0 3px rgba(96,165,250,.20),
+        0 0 24px rgba(96,165,250,.22),
+        inset 6px 0 7px rgba(255,255,255,.22),
+        inset -5px 0 9px rgba(0,0,0,.38);
+    }
+    [data-theme="dark"] .phone-beam {
+      background:
+        linear-gradient(90deg, rgba(125,211,252,.42), rgba(96,165,250,.16) 48%, rgba(96,165,250,0)),
+        repeating-linear-gradient(90deg, rgba(248,250,252,.18) 0 3px, transparent 3px 28px);
+      opacity: .84;
+    }
+    .conveyor-window {
+      position: relative;
+      overflow: hidden;
+      min-height: 246px;
+      border-radius: 28px;
+      background: var(--landing-bg);
+    }
+    .conveyor-window::before,
+    .conveyor-window::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      z-index: 3;
+      width: 80px;
+      pointer-events: none;
+    }
+    .conveyor-window::before {
+      left: 0;
+      background: linear-gradient(to right, var(--landing-bg), transparent);
+    }
+    .conveyor-window::after {
+      right: 0;
+      background: linear-gradient(to left, var(--landing-bg), transparent);
+    }
+    .conveyor-track {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 20px;
+      height: 46px;
+      border: 1px solid var(--landing-border);
+      border-radius: 999px;
+      background:
+        repeating-linear-gradient(90deg, rgba(47, 42, 37, .18) 0 18px, transparent 18px 42px),
+        linear-gradient(180deg, rgba(255,255,255,.35), rgba(79,91,74,.20));
+      box-shadow: inset 0 10px 18px rgba(255,255,255,.18), inset 0 -8px 18px rgba(15,23,42,.12);
+    }
+    .conveyor-window.is-stopped .conveyor-track::before {
+      animation-play-state: paused;
+      opacity: .18;
+    }
+    .conveyor-window.is-stopped .product-row {
+      animation-play-state: paused;
+    }
+    .conveyor-window.is-picking .product-row {
+      animation-play-state: paused;
+    }
+    [data-theme="dark"] .conveyor-track {
+      background:
+        repeating-linear-gradient(90deg, rgba(148, 163, 184, .22) 0 18px, transparent 18px 42px),
+        linear-gradient(180deg, rgba(96,165,250,.18), rgba(2,6,23,.65));
+    }
+    .conveyor-track::before {
+      content: "";
+      position: absolute;
+      inset: 6px 14px;
+      border-radius: 999px;
+      background: repeating-linear-gradient(90deg, rgba(255,255,255,.36) 0 12px, transparent 12px 34px);
+      opacity: .45;
+      animation: belt-motion 1.4s linear infinite;
+    }
+    .product-row {
+      position: absolute;
+      left: 28px;
+      right: 28px;
+      bottom: 52px;
+      z-index: 2;
+      animation: products-left 10s linear infinite;
+    }
+    .product-layer {
+      position: absolute;
+      inset: 0;
+    }
+    .product {
+      position: absolute;
+      bottom: 0;
+      filter: drop-shadow(0 10px 14px rgba(15, 23, 42, .15));
+      transition: opacity .35s ease, transform .35s ease;
+    }
+    .product.is-removed {
+      opacity: 0;
+      transform: translateY(-20px) scale(.7);
+    }
+    .bottle {
+      width: 29px;
+      height: 62px;
+      border: 1px solid rgba(79, 91, 74, .18);
+      border-radius: 10px 10px 8px 8px;
+      background: linear-gradient(180deg, #f7faf4, #cddbcf);
+    }
+    .bottle::before {
+      content: "";
+      position: absolute;
+      left: 9px;
+      top: -12px;
+      width: 11px;
+      height: 14px;
+      border-radius: 4px 4px 2px 2px;
+      background: #aebbaa;
+    }
+    .bottle.pink { background: linear-gradient(180deg, #fff8f9, #e6a1ae); }
+    .bottle.tall { width: 24px; height: 74px; border-radius: 12px 12px 8px 8px; }
+    .jar {
+      width: 47px;
+      height: 34px;
+      border: 1px solid rgba(79, 91, 74, .16);
+      border-radius: 999px 999px 14px 14px;
+      background: linear-gradient(180deg, #fff7f9 0 38%, #e6a1ae 38% 100%);
+    }
+    .jar::before {
+      content: "";
+      position: absolute;
+      left: 4px;
+      right: 4px;
+      top: -8px;
+      height: 13px;
+      border-radius: 999px;
+      background: #f4d4da;
+      border: 1px solid rgba(79, 91, 74, .12);
+    }
+    .tube {
+      width: 27px;
+      height: 57px;
+      border-radius: 13px 13px 6px 6px;
+      background: linear-gradient(180deg, #f8fafc, #d7e0d3);
+      border: 1px solid rgba(79, 91, 74, .14);
+    }
+    .tube::after {
+      content: "";
+      position: absolute;
+      left: 6px;
+      right: 6px;
+      bottom: -5px;
+      height: 7px;
+      border-radius: 4px;
+      background: #9fb09b;
+    }
+    .ceiling-tools {
+      position: absolute;
+      left: 134px;
+      right: 0;
+      top: 0;
+      z-index: 8;
+      height: 42px;
+      pointer-events: none;
+    }
+    .gripper {
+      position: absolute;
+      top: 0;
+      width: 34px;
+      height: 42px;
+      left: var(--gripper-left, 50%);
+      margin-left: -17px;
+      opacity: .95;
+      transform: translateY(var(--gripper-y, 0px));
+      transition: left 1.8s ease-in-out, transform 1.05s ease-in-out;
+    }
+    .gripper::before {
+      content: "";
+      position: absolute;
+      left: 15px;
+      top: 0;
+      width: 3px;
+      height: 19px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(148,163,184,.15), rgba(79,91,74,.65));
+    }
+    .gripper::after {
+      content: "";
+      position: absolute;
+      left: 7px;
+      top: 18px;
+      width: 20px;
+      height: 11px;
+      border-radius: 6px 6px 4px 4px;
+      background: linear-gradient(180deg, #dbe4d6, #9fb09b);
+      box-shadow: 0 8px 16px rgba(15, 23, 42, .13);
+    }
+    .claw {
+      position: absolute;
+      top: 29px;
+      width: 9px;
+      height: 10px;
+      border: 2px solid #8fa08a;
+      border-top: 0;
+    }
+    .claw.left {
+      left: 7px;
+      border-right: 0;
+      border-radius: 0 0 0 8px;
+      transform: rotate(10deg);
+    }
+    .claw.right {
+      right: 7px;
+      border-left: 0;
+      border-radius: 0 0 8px 0;
+      transform: rotate(-10deg);
+    }
+    [data-theme="dark"] .gripper::before {
+      background: linear-gradient(180deg, rgba(148,163,184,.18), rgba(96,165,250,.55));
+    }
+    [data-theme="dark"] .gripper::after {
+      background: linear-gradient(180deg, #334155, #1e3a5f);
+    }
+    [data-theme="dark"] .claw {
+      border-color: #60a5fa;
+    }
+    .carried-product {
+      position: absolute;
+      left: var(--gripper-left, 50%);
+      top: 42px;
+      z-index: 5;
+      transform: translateY(calc(var(--gripper-y, 0px) + 4px)) scale(.78);
+      margin-left: -15px;
+      transform-origin: top center;
+      transition: left 1.8s ease-in-out, transform 1.05s ease-in-out, opacity .25s ease;
+    }
+    .trash-station {
+      position: relative;
+      min-height: 246px;
+      border-radius: 28px;
+      background: var(--landing-bg);
+    }
+    .trash-bin {
+      position: absolute;
+      right: 6px;
+      bottom: 20px;
+      width: 96px;
+      height: 92px;
+      border: 1px solid var(--landing-border);
+      border-radius: 12px 12px 20px 20px;
+      background: linear-gradient(180deg, rgba(255,255,255,.44), rgba(79,91,74,.18));
+      box-shadow: inset 0 10px 18px rgba(255,255,255,.15), 0 16px 24px rgba(15,23,42,.10);
+    }
+    .trash-bin::before {
+      content: "";
+      position: absolute;
+      left: -8px;
+      right: -8px;
+      top: -14px;
+      height: 18px;
+      border: 1px solid var(--landing-border);
+      border-radius: 999px;
+      background: linear-gradient(180deg, #dbe4d6, #9fb09b);
+    }
+    .trash-bin::after {
+      content: "";
+      position: absolute;
+      inset: 18px 24px auto 24px;
+      height: 42px;
+      border-left: 2px solid rgba(79,91,74,.25);
+      border-right: 2px solid rgba(79,91,74,.25);
+    }
+    [data-theme="dark"] .trash-bin {
+      background: linear-gradient(180deg, rgba(96,165,250,.18), rgba(2,6,23,.65));
+    }
+    [data-theme="dark"] .trash-bin::before {
+      background: linear-gradient(180deg, #334155, #1e3a5f);
+    }
+    @keyframes belt-motion {
+      from { background-position-x: 46px; }
+      to { background-position-x: 0; }
+    }
+    @keyframes products-left {
+      from { transform: translateX(42px); }
+      to { transform: translateX(-82px); }
+    }
+    @keyframes scan-beam {
+      0%, 100% { opacity: .54; transform: rotate(24deg) scaleX(.94); }
+      50% { opacity: .88; transform: rotate(24deg) scaleX(1.03); }
+    }
+    @keyframes scan-dot {
+      0% { transform: translate(0, 0); opacity: .35; }
+      50% { transform: translate(178px, 78px); opacity: .95; }
+      100% { transform: translate(0, 0); opacity: .35; }
+    }
+    @media (max-width: 720px) {
+      .conveyor-stage {
+        grid-template-columns: 76px minmax(0, 1fr) 86px;
+        gap: 10px;
+      }
+      .ceiling-tools {
+        left: 86px;
+      }
+      .phone-station,
+      .trash-station,
+      .conveyor-window {
+        min-height: 208px;
+      }
+      .detect-phone {
+        left: 24px;
+        top: 12px;
+        width: 26px;
+        height: 118px;
+        border-radius: 12px;
+      }
+      .phone-beam {
+        left: 51px;
+        top: 1px;
+        width: min(44vw, 210px);
+        height: 76px;
+      }
+      .phone-scan-dot {
+        left: 62px;
+        top: 37px;
+      }
+      .trash-bin {
+        right: 0;
+        width: 72px;
+      }
+    }
+    .theme-toggle { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; background: var(--landing-card); border: 1px solid var(--landing-border); }
+    .theme-icon { width: 18px; height: 18px; display: block; }
+    .theme-icon-moon { color: #facc15; }
+    .theme-icon-sun { color: #f8fafc; }
+    [data-theme="light"] .theme-icon-sun { display: none; }
+    [data-theme="dark"] .theme-icon-moon { display: none; }
+    [data-theme="dark"] .theme-toggle { background: #0b1220; border: 0; box-shadow: none; }
+  </style>
+</head>
+<body
+  class="min-h-full"
+  x-data="{
+    dark: document.documentElement.dataset.theme === 'dark',
+    alpineReady: false,
+    conveyorDone: false,
+    activeProduct: null,
+    carriedProduct: null,
+    gripperLeft: '50%',
+    gripperY: 0,
+    productSeed: [
+      { id: 1, type: 'bottle tall', x: 8 },
+      { id: 2, type: 'jar', x: 23 },
+      { id: 3, type: 'bottle pink', x: 38 },
+      { id: 4, type: 'tube', x: 55 },
+      { id: 5, type: 'bottle', x: 70 },
+      { id: 6, type: 'jar', x: 85 }
+    ],
+    products: [
+      { id: 1, type: 'bottle tall', x: 8, removed: false },
+      { id: 2, type: 'jar', x: 23, removed: false },
+      { id: 3, type: 'bottle pink', x: 38, removed: false },
+      { id: 4, type: 'tube', x: 55, removed: false },
+      { id: 5, type: 'bottle', x: 70, removed: false },
+      { id: 6, type: 'jar', x: 85, removed: false }
+    ],
+    toggleTheme() {
+      this.dark = !this.dark;
+      localStorage.setItem('mdetect-theme', this.dark ? 'dark' : 'light');
+      document.documentElement.dataset.theme = this.dark ? 'dark' : 'light';
+    },
+    sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    },
+    visibleProducts() {
+      return this.products.filter(product => !product.removed);
+    },
+    clampPercent(value) {
+      return Math.max(2, Math.min(98, value));
+    },
+    targetPercentFromClientX(clientX) {
+      const zone = this.$refs.toolZone;
+      if (!zone) {
+        return '50%';
+      }
+      const zoneRect = zone.getBoundingClientRect();
+      const percent = ((clientX - zoneRect.left) / zoneRect.width) * 100;
+      return `${this.clampPercent(percent)}%`;
+    },
+    productTargetLeft(product) {
+      const conveyor = this.$refs.conveyorWindow;
+      if (!conveyor) {
+        return `${product.x}%`;
+      }
+      const conveyorRect = conveyor.getBoundingClientRect();
+      const rowInset = 28;
+      const rowWidth = Math.max(1, conveyorRect.width - rowInset * 2);
+      const clientX = conveyorRect.left + rowInset + rowWidth * (product.x / 100);
+      return this.targetPercentFromClientX(clientX);
+    },
+    trashTargetLeft() {
+      const trashBin = this.$refs.trashBin;
+      if (!trashBin) {
+        return '92%';
+      }
+      const rect = trashBin.getBoundingClientRect();
+      return this.targetPercentFromClientX(rect.left + rect.width / 2);
+    },
+    resetProducts() {
+      this.products = this.productSeed.map(product => ({ ...product, removed: false }));
+      this.conveyorDone = false;
+      this.carriedProduct = null;
+      this.gripperLeft = '50%';
+      this.gripperY = 0;
+    },
+    async startConveyor() {
+      await this.sleep(1600);
+      while (true) {
+        while (this.visibleProducts().length > 0) {
+          await this.discardRandomProduct();
+          await this.sleep(850);
+        }
+        this.conveyorDone = true;
+        this.gripperLeft = '50%';
+        this.gripperY = 0;
+        await this.sleep(2600);
+        this.resetProducts();
+        await this.sleep(1200);
+      }
+    },
+    async discardRandomProduct() {
+      const visible = this.visibleProducts();
+      const product = visible[Math.floor(Math.random() * visible.length)];
+      this.gripperLeft = this.productTargetLeft(product);
+      this.gripperY = 0;
+      await this.sleep(1300);
+      this.gripperY = 106;
+      await this.sleep(1000);
+      product.removed = true;
+      this.carriedProduct = product;
+      this.gripperY = 0;
+      await this.sleep(1100);
+      this.gripperLeft = this.trashTargetLeft();
+      await this.sleep(2400);
+      this.gripperY = 130;
+      await this.sleep(1100);
+      this.carriedProduct = null;
+      this.gripperY = 0;
+      await this.sleep(900);
+    },
+    productClass(product) {
+      return `product ${product.type} ${product.removed ? 'is-removed' : ''}`;
+    }
+  }"
+  x-init="alpineReady = true"
+>
+  <main class="relative min-h-screen overflow-hidden">
+    <div class="landing-top absolute inset-x-0 top-0 h-56"></div>
+    <section class="relative mx-auto grid min-h-screen max-w-7xl items-center gap-10 px-6 py-10 lg:grid-cols-[minmax(0,1.05fr)_420px] lg:px-10">
+      <div>
+        <div class="mb-8 flex items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+          <span class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#aebbaa] text-lg font-black text-[#4f5b4a]">D</span>
+          <div>
+            <p class="text-lg font-bold tracking-normal">theDetect</p>
+            <p class="landing-muted text-sm font-medium">Mobile Detection Console</p>
+          </div>
+          </div>
+          <button type="button" class="theme-toggle shrink-0" aria-label="Toggle bright and dark mode" @click="toggleTheme()">
+            <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20.2 15.2A7.4 7.4 0 0 1 8.8 3.8a8.6 8.6 0 1 0 11.4 11.4Z" fill="currentColor"/>
+            </svg>
+            <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="3.5" fill="#f8fafc"/>
+              <path d="M12 2.5v2.6M12 18.9v2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M2.5 12h2.6M18.9 12h2.6M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" stroke="#f8fafc" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+
+        <p class="landing-soft landing-accent mb-4 inline-flex rounded-full border px-4 py-2 text-sm font-semibold shadow-sm">
+          Server-side YOLO inference ready
+        </p>
+        <h1 class="max-w-3xl text-3xl font-black leading-[1.28] tracking-normal sm:text-4xl lg:text-5xl lg:leading-[1.24]">
+          카메라 객체탐지를<br class="hidden sm:block"> 서버 모델과 연결합니다
+        </h1>
+        <p class="landing-muted mt-6 max-w-2xl text-lg leading-8">
+          theDetect는 모바일 CameraX 프레임을 서버 YOLO 모델로 분석하고, 탐지 결과와 로그를 웹 콘솔에서 관리하는 실시간 객체탐지 서비스입니다.
+        </p>
+
+        <div class="mt-8 grid gap-3 sm:grid-cols-3">
+          <div class="landing-soft rounded-2xl border p-4 shadow-sm">
+            <p class="landing-muted text-sm font-bold">Mode</p>
+            <p class="mt-2 text-xl font-black">Server / App</p>
+          </div>
+          <div class="landing-soft rounded-2xl border p-4 shadow-sm">
+            <p class="landing-muted text-sm font-bold">Model</p>
+            <p class="mt-2 text-xl font-black">YOLO Active</p>
+          </div>
+          <div class="landing-soft rounded-2xl border p-4 shadow-sm">
+            <p class="landing-muted text-sm font-bold">Console</p>
+            <p class="mt-2 text-xl font-black">Dataset / Logs</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div>
+          <section class="landing-card rounded-3xl border p-6 shadow-2xl shadow-slate-900/10 backdrop-blur">
+            <div class="mb-5">
+              <h2 class="text-2xl font-black">로그인</h2>
+              <p class="landing-muted mt-1 text-sm">로그인 후 모든 theDetect 콘솔 화면을 사용할 수 있습니다.</p>
+            </div>
+            <form method="post" action="{% url 'login' %}" class="space-y-4">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{% url 'core:dashboard' %}">
+              <div>
+                <label for="id_username" class="landing-accent block text-sm font-bold">Username or phone</label>
+                <input id="id_username" name="username" autocomplete="username" required class="landing-field mt-2 w-full rounded-xl border px-4 py-3 text-sm outline-none focus:border-[#aebbaa] focus:ring-2 focus:ring-[#aebbaa]/30">
+              </div>
+              <div>
+                <label for="id_password" class="landing-accent block text-sm font-bold">Password</label>
+                <input id="id_password" name="password" type="password" autocomplete="current-password" required class="landing-field mt-2 w-full rounded-xl border px-4 py-3 text-sm outline-none focus:border-[#aebbaa] focus:ring-2 focus:ring-[#aebbaa]/30">
+              </div>
+              <button type="submit" class="w-full rounded-full bg-gradient-to-r from-[#e6a1ae] to-[#aebbaa] px-5 py-3 text-sm font-black text-[#2f2a25] shadow-sm">
+                콘솔로 로그인
+              </button>
+              <p class="landing-muted text-center text-sm">
+                계정이 없나요?
+                <a href="{% url 'accounts:signup' %}?next={% url 'core:dashboard' %}" class="landing-accent font-bold underline underline-offset-4">Sign up</a>
+              </p>
+            </form>
+          </section>
+        </div>
+      </div>
+
+      <section class="animated-conveyor lg:col-span-2" aria-label="Animated cosmetic and shampoo conveyor belt">
+        <div class="conveyor-stage" data-conveyor-root>
+          <div class="phone-station" aria-label="Smartphone object detection camera">
+            <div class="phone-beam" aria-hidden="true"></div>
+            <div class="phone-scan-dot" aria-hidden="true"></div>
+            <div class="detect-phone" aria-hidden="true">
+              <span class="phone-lens"></span>
+            </div>
+          </div>
+          <div class="ceiling-tools" x-ref="toolZone" data-tool-zone aria-hidden="true">
+            <span class="gripper" data-gripper>
+              <span class="claw left"></span>
+              <span class="claw right"></span>
+            </span>
+            <span data-carried-slot></span>
+          </div>
+          <div class="conveyor-window" x-ref="conveyorWindow" data-conveyor-window>
+            <div class="product-row" aria-hidden="true">
+              <div class="product-layer">
+                <span class="product bottle tall" data-product data-product-type="bottle tall" style="left: 8%;"></span>
+                <span class="product jar" data-product data-product-type="jar" style="left: 23%;"></span>
+                <span class="product bottle pink" data-product data-product-type="bottle pink" style="left: 38%;"></span>
+                <span class="product tube" data-product data-product-type="tube" style="left: 55%;"></span>
+                <span class="product bottle" data-product data-product-type="bottle" style="left: 70%;"></span>
+                <span class="product jar" data-product data-product-type="jar" style="left: 85%;"></span>
+              </div>
+            </div>
+            <div class="conveyor-track" aria-hidden="true"></div>
+          </div>
+          <div class="trash-station" aria-label="Trash bin">
+            <div class="trash-bin" x-ref="trashBin" data-trash-bin aria-hidden="true"></div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+  <script>
+    (function () {
+      const sleep = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function initConveyorPicker() {
+        const root = document.querySelector('[data-conveyor-root]');
+        if (!root || root.dataset.pickerReady === '1') {
+          return;
+        }
+        root.dataset.pickerReady = '1';
+
+        const toolZone = root.querySelector('[data-tool-zone]');
+        const gripper = root.querySelector('[data-gripper]');
+        const carriedSlot = root.querySelector('[data-carried-slot]');
+        const conveyorWindow = root.querySelector('[data-conveyor-window]');
+        const trashBin = root.querySelector('[data-trash-bin]');
+        const products = Array.from(root.querySelectorAll('[data-product]'));
+
+        if (!toolZone || !gripper || !carriedSlot || !conveyorWindow || !trashBin || products.length === 0) {
+          return;
+        }
+
+        let carried = null;
+
+        function percentFromClientX(clientX) {
+          const zoneRect = toolZone.getBoundingClientRect();
+          if (!zoneRect.width) {
+            return '50%';
+          }
+          const percent = ((clientX - zoneRect.left) / zoneRect.width) * 100;
+          return `${clamp(percent, 2, 98)}%`;
+        }
+
+        function setTool(left, y) {
+          gripper.style.setProperty('--gripper-left', left);
+          gripper.style.setProperty('--gripper-y', `${y}px`);
+          if (carried) {
+            carried.style.setProperty('--gripper-left', left);
+            carried.style.setProperty('--gripper-y', `${y}px`);
+          }
+        }
+
+        function productLeft(product) {
+          const rect = product.getBoundingClientRect();
+          return percentFromClientX(rect.left + rect.width / 2);
+        }
+
+        function trashLeft() {
+          const rect = trashBin.getBoundingClientRect();
+          return percentFromClientX(rect.left + rect.width / 2);
+        }
+
+        function visibleProducts() {
+          return products.filter((product) => !product.classList.contains('is-removed'));
+        }
+
+        function attachCarried(product) {
+          carriedSlot.innerHTML = '';
+          carried = document.createElement('span');
+          carried.className = `carried-product ${product.dataset.productType || 'bottle'}`;
+          carriedSlot.appendChild(carried);
+        }
+
+        function dropCarried() {
+          carriedSlot.innerHTML = '';
+          carried = null;
+        }
+
+        function resetProducts() {
+          products.forEach((product) => product.classList.remove('is-removed'));
+          conveyorWindow.classList.remove('is-stopped');
+          dropCarried();
+          setTool('50%', 0);
+        }
+
+        async function pickAndDiscard(product) {
+          conveyorWindow.classList.add('is-picking');
+          await sleep(80);
+          const pickupLeft = productLeft(product);
+          setTool(pickupLeft, 0);
+          await sleep(1900);
+          setTool(pickupLeft, 106);
+          await sleep(1000);
+          product.classList.add('is-removed');
+          attachCarried(product);
+          setTool(pickupLeft, 0);
+          await sleep(1100);
+          conveyorWindow.classList.remove('is-picking');
+          const dropLeft = trashLeft();
+          setTool(dropLeft, 0);
+          await sleep(2400);
+          setTool(dropLeft, 130);
+          await sleep(1100);
+          dropCarried();
+          setTool(dropLeft, 0);
+          await sleep(900);
+        }
+
+        async function run() {
+          await sleep(1600);
+          while (true) {
+            const visible = visibleProducts();
+            if (!visible.length) {
+              conveyorWindow.classList.add('is-stopped');
+              await sleep(2600);
+              resetProducts();
+              await sleep(1200);
+              continue;
+            }
+            await pickAndDiscard(visible[Math.floor(Math.random() * visible.length)]);
+            await sleep(850);
+          }
+        }
+
+        setTool('50%', 0);
+        run();
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initConveyorPicker);
+      } else {
+        initConveyorPicker();
+      }
+    })();
+  </script>
+</body>
+</html>

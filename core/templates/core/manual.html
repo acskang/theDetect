@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block title %}Manual - theDetect{% endblock %}
+{% block page_title %}Manual{% endblock %}
+
+{% block content %}
+{{ manual_stage_file_map|json_script:"manual-stage-file-map" }}
+<style>
+  .manual-layout--sidebar-collapsed {
+    grid-template-columns: 1fr !important;
+  }
+  .manual-layout--sidebar-collapsed .manual-sidebar {
+    display: none;
+  }
+  .manual-content h1,
+  .manual-content h2,
+  .manual-content h3 {
+    margin-top: 1.35rem;
+    color: var(--primary);
+    font-weight: 900;
+    letter-spacing: 0;
+    line-height: 1.2;
+  }
+  .manual-content h1 {
+    font-size: 1.9rem;
+  }
+  .manual-content h2 {
+    font-size: 1.45rem;
+  }
+  .manual-content h3 {
+    font-size: 1.15rem;
+  }
+  .manual-content h1:first-child,
+  .manual-content h2:first-child,
+  .manual-content h3:first-child {
+    margin-top: 0;
+  }
+  .manual-content p,
+  .manual-content li {
+    color: var(--text);
+    font-size: .95rem;
+    line-height: 1.85;
+  }
+  .manual-content p {
+    margin-top: .75rem;
+  }
+  .manual-content ul {
+    margin-top: .75rem;
+    padding-left: 1.25rem;
+    list-style: disc;
+  }
+  .manual-pre {
+    margin-top: 1rem;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: .75rem;
+    background: #020617;
+    padding: 1rem;
+    color: #d1d5db;
+    font-size: .86rem;
+    line-height: 1.7;
+  }
+  .manual-search-result mark {
+    border-radius: .25rem;
+    background: rgba(250, 204, 21, .35);
+    color: var(--text);
+    padding: 0 .18rem;
+  }
+  @media (max-width: 1023px) {
+    .manual-layout {
+      grid-template-columns: 1fr !important;
+    }
+    .manual-sidebar {
+      position: static !important;
+      max-height: none !important;
+    }
+  }
+</style>
+
+<section class="space-y-6">
+  <header class="grid gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:grid-cols-[minmax(0,1fr)_320px] lg:items-end">
+    <div>
+      <p class="text-xs font-black uppercase tracking-normal text-blue-700">Operations Manual</p>
+      <h2 class="mt-3 text-4xl font-black leading-tight text-slate-950">theDetect manual.</h2>
+      <p class="mt-3 max-w-2xl text-sm leading-7 text-slate-600">설계 문서, 구현 결과, API, Android 테스트 절차를 한 화면에서 확인합니다.</p>
+    </div>
+    <div class="grid gap-3 sm:grid-cols-2">
+      <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <span class="text-xs font-black uppercase text-slate-500">Documents</span>
+        <strong class="mt-2 block text-4xl font-black text-slate-950">{{ manual_stats.document_count }}</strong>
+      </div>
+      <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <span class="text-xs font-black uppercase text-slate-500">Groups</span>
+        <strong class="mt-2 block text-4xl font-black text-slate-950">{{ manual_stats.stage_count }}</strong>
+      </div>
+    </div>
+  </header>
+
+  <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Manual filters">
+    <form method="get" action="{% url 'core:manual' %}" class="grid gap-3 lg:grid-cols-[1fr_1.35fr_1.35fr_auto] lg:items-end">
+      <label class="grid gap-2 text-xs font-black uppercase text-slate-700" for="manual-stage">
+        Group
+        <select class="rounded-full border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-blue-500" id="manual-stage" name="stage" data-manual-stage-select>
+          {% for stage in manual_stage_options %}
+            <option value="{{ stage.value }}" {% if stage.value == current_stage %}selected{% endif %}>{{ stage.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="grid gap-2 text-xs font-black uppercase text-slate-700" for="manual-doc">
+        Document
+        <select class="rounded-full border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-blue-500" id="manual-doc" name="doc" data-manual-doc-select data-selected-doc="{{ selected_doc_path }}">
+          {% for option in current_stage_files %}
+            <option value="{{ option.value }}" {% if option.value == selected_doc_path %}selected{% endif %}>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="grid gap-2 text-xs font-black uppercase text-slate-700" for="manual-query">
+        Search
+        <input class="rounded-full border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500" id="manual-query" type="search" name="q" value="{{ search_query }}" placeholder="문서 내용 검색">
+      </label>
+      <button class="rounded-full bg-blue-700 px-6 py-3 text-sm font-black text-white transition hover:bg-blue-800" type="submit">Open</button>
+    </form>
+    <div class="mt-3 flex justify-end">
+      <button class="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50" type="button" data-manual-sidebar-toggle aria-expanded="true">목록 접기</button>
+    </div>
+  </section>
+
+  <div class="manual-layout grid gap-5 lg:grid-cols-[18rem_1fr]" data-manual-layout>
+    <aside class="manual-sidebar sticky top-24 max-h-[calc(100vh-7rem)] overflow-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Manual document list">
+      {% for stage in manual_stage_groups %}
+        <section class="{% if not forloop.first %}mt-6 border-t border-slate-200 pt-5{% endif %}">
+          <h3 class="text-xs font-black uppercase text-blue-700">{{ stage.label }}</h3>
+          <ul class="mt-3 grid gap-2">
+            {% for option in stage.files %}
+              <li>
+                <a href="{% url 'core:manual_view' option.value %}" class="block rounded-lg border px-3 py-2 text-sm font-bold transition {% if option.value == selected_doc_path %}border-blue-500 bg-blue-50 text-blue-700{% else %}border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-blue-700{% endif %}">
+                  {{ option.label }}
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        </section>
+      {% empty %}
+        <div class="rounded-xl border border-slate-200 bg-slate-50 p-5 text-center text-sm font-bold text-slate-500">표시할 문서가 없습니다.</div>
+      {% endfor %}
+    </aside>
+
+    <section class="grid gap-5" aria-label="Manual content">
+      {% if search_query %}
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div class="flex items-center justify-between gap-3">
+            <h2 class="text-2xl font-black text-slate-950">검색 결과</h2>
+            <span class="rounded-full bg-blue-700 px-3 py-1 text-xs font-black text-white">{{ search_results|length }}건</span>
+          </div>
+          <div class="mt-4">
+            {% for result in search_results %}
+              <article class="manual-search-result border-t border-slate-200 py-4">
+                <a class="text-base font-black text-blue-700 hover:text-blue-800" href="{% url 'core:manual_view' result.relative_path %}?stage={{ current_stage }}&q={{ search_query|urlencode }}">{{ result.title }}</a>
+                <span class="ml-2 rounded-full border border-slate-200 px-2 py-0.5 text-[11px] font-black text-slate-500">{{ result.stage_label }}</span>
+                <p class="mt-2 text-sm leading-6 text-slate-600">{{ result.excerpt }}</p>
+              </article>
+            {% empty %}
+              <div class="rounded-xl border border-slate-200 bg-slate-50 p-5 text-center text-sm font-bold text-slate-500">검색 결과가 없습니다.</div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+      {% if current_doc %}
+        <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div class="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-5">
+            <div>
+              <span class="rounded-full bg-blue-700 px-3 py-1 text-xs font-black text-white">{{ current_doc.stage_label }}</span>
+              <h2 class="mt-3 text-3xl font-black leading-tight text-slate-950">{{ current_doc.title }}</h2>
+              <p class="mt-2 break-all text-sm font-bold text-slate-500">{{ current_doc.relative_path }}</p>
+            </div>
+            <a class="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50" href="{% url 'core:manual_raw' current_doc.relative_path %}" target="_blank" rel="noopener">원문 보기</a>
+          </div>
+          <div class="manual-content mt-6">
+            {{ current_doc.html_content }}
+          </div>
+        </article>
+      {% else %}
+        <div class="rounded-2xl border border-slate-200 bg-white p-10 text-center text-lg font-black text-slate-950">선택된 매뉴얼 문서가 없습니다.</div>
+      {% endif %}
+    </section>
+  </div>
+</section>
+
+<script>
+  (() => {
+    const storageKey = 'theDetectManualSidebarCollapsed';
+    function getStageFileMap() {
+      const script = document.getElementById('manual-stage-file-map');
+      if (!script) return {};
+      try { return JSON.parse(script.textContent); } catch { return {}; }
+    }
+    function syncDocumentOptions(stageSelect, docSelect, fileMap) {
+      if (!stageSelect || !docSelect) return;
+      const selectedStage = stageSelect.value;
+      const selectedDoc = docSelect.dataset.selectedDoc;
+      const options = fileMap[selectedStage] || [];
+      docSelect.innerHTML = '';
+      options.forEach((item) => {
+        const option = document.createElement('option');
+        option.value = item.value;
+        option.textContent = item.label;
+        option.selected = item.value === selectedDoc;
+        docSelect.appendChild(option);
+      });
+    }
+    function getStoredCollapsed() {
+      try { return window.localStorage.getItem(storageKey) === 'true'; } catch { return false; }
+    }
+    function storeCollapsed(collapsed) {
+      try { window.localStorage.setItem(storageKey, collapsed ? 'true' : 'false'); } catch { return; }
+    }
+    function applySidebarState(layout, toggle, collapsed) {
+      if (!layout || !toggle) return;
+      layout.classList.toggle('manual-layout--sidebar-collapsed', collapsed);
+      toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      toggle.textContent = collapsed ? '목록 펼치기' : '목록 접기';
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      const fileMap = getStageFileMap();
+      const stageSelect = document.querySelector('[data-manual-stage-select]');
+      const docSelect = document.querySelector('[data-manual-doc-select]');
+      syncDocumentOptions(stageSelect, docSelect, fileMap);
+      stageSelect?.addEventListener('change', () => {
+        if (docSelect) docSelect.dataset.selectedDoc = '';
+        syncDocumentOptions(stageSelect, docSelect, fileMap);
+      });
+      const layout = document.querySelector('[data-manual-layout]');
+      const toggle = document.querySelector('[data-manual-sidebar-toggle]');
+      applySidebarState(layout, toggle, getStoredCollapsed());
+      toggle?.addEventListener('click', () => {
+        const collapsed = !layout.classList.contains('manual-layout--sidebar-collapsed');
+        applySidebarState(layout, toggle, collapsed);
+        storeCollapsed(collapsed);
+      });
+    });
+  })();
+</script>
+{% endblock %}

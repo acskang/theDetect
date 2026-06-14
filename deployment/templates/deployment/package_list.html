@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Android Model Packages - MDetect{% endblock %}
+{% block page_title %}Android Model Packages{% endblock %}
+
+{% block content %}
+  <div class="mb-4 flex items-center justify-between">
+    <p class="text-sm text-slate-600">Android packages contain model.tflite, labels.txt, and metadata.json.</p>
+    <a href="{% url 'deployment:android_export' %}" class="rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white">Export package</a>
+  </div>
+  <section class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+    <table class="min-w-full divide-y divide-slate-200 text-sm">
+      <thead class="bg-slate-50 text-left text-xs font-semibold uppercase text-slate-500">
+        <tr>
+          <th class="px-4 py-3">Version</th>
+          <th class="px-4 py-3">Trained model</th>
+          <th class="px-4 py-3">Status</th>
+          <th class="px-4 py-3">Input</th>
+          <th class="px-4 py-3">Thresholds</th>
+          <th class="px-4 py-3">Deployed</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-200">
+        {% for package in packages %}
+          <tr>
+            <td class="px-4 py-3"><a href="{% url 'deployment:package_detail' package.id %}" class="font-medium text-blue-700">{{ package.model_version }}</a></td>
+            <td class="px-4 py-3">{{ package.trained_model.name }}</td>
+            <td class="px-4 py-3">{{ package.get_status_display }}</td>
+            <td class="px-4 py-3">{{ package.input_size }}</td>
+            <td class="px-4 py-3">{{ package.confidence_threshold }} / {{ package.iou_threshold }}</td>
+            <td class="px-4 py-3">{{ package.is_deployed|yesno:"Yes,No" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="px-4 py-6 text-center text-slate-500">No packages yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

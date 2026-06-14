@@ -1,0 +1,363 @@
+{% load static %}
+<!doctype html>
+<html lang="ko" class="h-full" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}theDetect{% endblock %}</title>
+  <script>
+    (function () {
+      const stored = localStorage.getItem('mdetect-theme');
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const dark = stored ? stored === 'dark' : prefersDark;
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      document.documentElement.classList.toggle('dark', dark);
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="{% static 'css/mdetect.css' %}">
+  <style>
+    [x-cloak] { display: none !important; }
+    :root {
+      --sidebar-bg: #111827;
+      --sidebar-hover: #1f2937;
+      --primary: #2563eb;
+      --body-bg: #f8fafc;
+      --panel-bg: #ffffff;
+      --border: #e5e7eb;
+      --text: #111827;
+      --muted: #64748b;
+    }
+    [data-theme="dark"] {
+      --sidebar-bg: #020617;
+      --sidebar-hover: #172033;
+      --primary: #60a5fa;
+      --body-bg: #0f172a;
+      --panel-bg: #111827;
+      --border: #243244;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+    }
+    body, .app-shell, .content-shell { background: var(--body-bg) !important; color: var(--text) !important; }
+    .app-sidebar { background: var(--sidebar-bg) !important; color: #f8fafc !important; }
+    .brand-link { color: #fff !important; display: inline-flex; align-items: center; gap: 10px; }
+    .brand-mark { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: var(--primary); color: #fff; font-weight: 800; }
+    .sidebar-link { color: #cbd5e1 !important; }
+    .sidebar-link:hover { background: var(--sidebar-hover); color: #fff !important; }
+    .top-header { background: color-mix(in srgb, var(--body-bg) 92%, transparent) !important; border-color: var(--border) !important; }
+    .theme-toggle { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-bg); color: var(--text); }
+    .theme-icon { width: 18px; height: 18px; display: block; }
+    .theme-icon-moon { color: #facc15; }
+    .theme-icon-sun { color: #f8fafc; }
+    [data-theme="light"] .theme-icon-sun { display: none; }
+    [data-theme="dark"] .theme-icon-moon { display: none; }
+    [data-theme="dark"] .theme-toggle { background: #0b1220; border: 0; box-shadow: none; }
+    [data-theme="dark"] .bg-white,
+    [data-theme="dark"] section.bg-white,
+    [data-theme="dark"] form.bg-white,
+    [data-theme="dark"] aside.bg-white,
+    [data-theme="dark"] .rounded-lg.bg-white {
+      background: #111827 !important;
+      color: #e5e7eb !important;
+    }
+    [data-theme="dark"] .bg-slate-50 {
+      background: #1e293b !important;
+      color: #e5e7eb !important;
+    }
+    [data-theme="dark"] .border-slate-200,
+    [data-theme="dark"] .border-slate-300,
+    [data-theme="dark"] .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+      border-color: #243244 !important;
+    }
+    [data-theme="dark"] .text-slate-950,
+    [data-theme="dark"] .text-slate-900,
+    [data-theme="dark"] .text-slate-800,
+    [data-theme="dark"] .text-slate-700 {
+      color: #e5e7eb !important;
+    }
+    [data-theme="dark"] .text-slate-600,
+    [data-theme="dark"] .text-slate-500,
+    [data-theme="dark"] .text-slate-400 {
+      color: #94a3b8 !important;
+    }
+    [data-theme="dark"] thead,
+    [data-theme="dark"] thead.bg-slate-50,
+    [data-theme="dark"] tbody tr {
+      background: #111827 !important;
+      color: #e5e7eb !important;
+    }
+    [data-theme="dark"] tbody tr:hover {
+      background: #172033 !important;
+    }
+    [data-theme="dark"] input,
+    [data-theme="dark"] select,
+    [data-theme="dark"] textarea {
+      background: #0b1220 !important;
+      border-color: #475569 !important;
+      color: #e5e7eb !important;
+    }
+    [data-theme="dark"] pre:not(.bg-slate-950) {
+      background: #1e293b !important;
+      color: #e5e7eb !important;
+    }
+    [data-theme="dark"] [class*="bg-red-50"] {
+      background: rgba(127, 29, 29, .24) !important;
+      color: #fecaca !important;
+    }
+    [data-theme="dark"] [class*="bg-amber-50"] {
+      background: rgba(120, 53, 15, .24) !important;
+      color: #fde68a !important;
+    }
+    [data-theme="dark"] [class*="bg-blue-50"] {
+      background: rgba(30, 64, 175, .24) !important;
+      color: #bfdbfe !important;
+    }
+    [data-theme="dark"] .shadow-sm {
+      box-shadow: 0 14px 35px rgba(0, 0, 0, .22) !important;
+    }
+    [data-theme="dark"] a.border,
+    [data-theme="dark"] button.border {
+      background: #111827 !important;
+      border-color: #243244 !important;
+      color: #e5e7eb !important;
+    }
+    @media (max-width: 1023px) {
+      .app-sidebar { position: fixed; inset: 0 auto 0 0; width: min(18rem, 86vw); transform: translateX(-100%); transition: transform .2s ease; }
+      .app-sidebar.is-open { transform: translateX(0); }
+      .nav-backdrop { position: fixed; inset: 0; z-index: 20; background: rgba(2, 6, 23, .56); }
+      .nav-backdrop[hidden] { display: none !important; }
+    }
+    @media (min-width: 1024px) {
+      .nav-backdrop { display: none !important; }
+      .app-sidebar.sidebar-collapsed { transform: translateX(-100%); }
+      .content-shell.sidebar-collapsed { padding-left: 0 !important; }
+    }
+  </style>
+</head>
+<body
+  class="h-full"
+  x-data="{
+    dark: document.documentElement.dataset.theme === 'dark',
+    sidebarOpen: false,
+    sidebarCollapsed: localStorage.getItem('mdetect-sidebar-collapsed') === 'true',
+    showSidebar() {
+      if (window.matchMedia('(min-width: 1024px)').matches) {
+        this.sidebarCollapsed = false;
+        localStorage.setItem('mdetect-sidebar-collapsed', 'false');
+        return;
+      }
+      this.sidebarOpen = true;
+      document.body.classList.add('nav-open');
+    },
+    hideSidebar() {
+      if (window.matchMedia('(min-width: 1024px)').matches) {
+        this.sidebarCollapsed = true;
+        localStorage.setItem('mdetect-sidebar-collapsed', 'true');
+        return;
+      }
+      this.sidebarOpen = false;
+      document.body.classList.remove('nav-open');
+    },
+    toggleTheme() {
+      this.dark = !this.dark;
+      localStorage.setItem('mdetect-theme', this.dark ? 'dark' : 'light');
+      document.documentElement.dataset.theme = this.dark ? 'dark' : 'light';
+      document.documentElement.classList.toggle('dark', this.dark);
+    }
+  }"
+  x-init="
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    document.documentElement.classList.toggle('dark', dark);
+  "
+>
+  <div class="app-shell min-h-full lg:flex">
+    <aside
+      data-navigation-sidebar
+      class="app-sidebar bg-slate-950 text-slate-100 lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col"
+      :class="{ 'is-open': sidebarOpen, 'sidebar-collapsed': sidebarCollapsed }"
+    >
+      <div class="flex h-16 items-center justify-between border-b border-white/10 px-6">
+        <a href="{% url 'core:landing' %}" class="brand-link text-lg font-semibold tracking-normal text-white">
+          <span class="brand-mark bg-blue-600 text-white">M</span>
+          <span>theDetect</span>
+        </a>
+        <button
+          type="button"
+          data-nav-close-button
+          class="sidebar-hide-button inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white"
+          aria-label="Hide navigation"
+          @click="hideSidebar()"
+        >
+          <span aria-hidden="true">☰</span>
+        </button>
+      </div>
+      <nav class="space-y-1 px-3 py-4 text-sm">
+        <a href="{% url 'core:dashboard' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">Dashboard</a>
+        <a href="{% url 'core:project_settings' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">Project Settings</a>
+        <a href="{% url 'datasets:object_class_list' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">Object Classes</a>
+        <a href="{% url 'datasets:image_list' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">Image Dataset</a>
+        <a href="{% url 'labeling:workspace' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">Labeling Workspace</a>
+        <a href="{% url 'datasets:dataset_build' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">Dataset Build</a>
+        <a href="{% url 'datasets:augmented_dataset_build' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">Augmented Dataset Build</a>
+        <a href="{% url 'datasets:dataset_version_list' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">Dataset Versions</a>
+        <a href="{% url 'training:job_list' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">Training Jobs</a>
+        <a href="{% url 'models_registry:registry' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">Model Registry</a>
+        <a href="{% url 'deployment:android_export' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">Android Model Export</a>
+        <a href="{% url 'deployment:package_list' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">Model Deployment</a>
+        <a href="{% url 'core:server_detection' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">Server Detection</a>
+        <a href="{% url 'core:detection_logs' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">Detection Logs</a>
+        <a href="{% url 'core:review_queue' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">Review Queue</a>
+        <a href="{% url 'core:api_test' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">API Test</a>
+        <a href="{% url 'core:manual' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">Manual</a>
+      </nav>
+    </aside>
+    <button
+      type="button"
+      data-nav-backdrop
+      class="nav-backdrop"
+      aria-label="Hide navigation"
+      hidden
+      @click="hideSidebar()"
+    ></button>
+
+    <main data-navigation-content class="content-shell lg:pl-72" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
+      <header class="top-header sticky top-0 z-10 border-b backdrop-blur">
+        <div class="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+          <div class="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              data-nav-open-button
+              class="mobile-menu-button rounded-lg border px-3 py-2 text-sm"
+              aria-label="Show navigation"
+              :aria-expanded="window.matchMedia('(min-width: 1024px)').matches ? (!sidebarCollapsed).toString() : sidebarOpen.toString()"
+              @click="showSidebar()"
+            >☰</button>
+            <div class="min-w-0">
+            <p class="text-sm font-medium text-slate-500">{{ service_name|default:"theDetect" }}</p>
+            <h1 class="text-xl font-semibold tracking-normal text-slate-950">{% block page_title %}Dashboard{% endblock %}</h1>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            {% if request.user.is_authenticated %}
+              <div class="hidden min-w-0 items-center gap-2 text-sm text-slate-600 sm:flex">
+                <span class="max-w-40 truncate font-medium text-slate-700">{{ request.user.get_username }}</span>
+                <form method="post" action="{% url 'logout' %}" class="m-0">
+                  {% csrf_token %}
+                  <button type="submit" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">logout</button>
+                </form>
+              </div>
+            {% endif %}
+            <button
+              type="button"
+              class="theme-toggle inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-900 shadow-sm"
+              aria-label="Toggle bright and dark mode"
+              @click="toggleTheme()"
+            >
+              <svg class="theme-icon theme-icon-moon h-5 w-5 text-yellow-400" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20.2 15.2A7.4 7.4 0 0 1 8.8 3.8a8.6 8.6 0 1 0 11.4 11.4Z" fill="currentColor"/>
+              </svg>
+              <svg class="theme-icon theme-icon-sun h-5 w-5 text-white" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="3.5" fill="#f8fafc"/>
+                <path d="M12 2.5v2.6M12 18.9v2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M2.5 12h2.6M18.9 12h2.6M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" stroke="#f8fafc" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </header>
+      <section class="px-4 py-6 sm:px-6 lg:px-8">
+        {% block content %}{% endblock %}
+        {% if messages %}
+          <div class="mt-4 space-y-2">
+            {% for message in messages %}
+              <div class="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </section>
+    </main>
+  </div>
+  <script>
+    (function () {
+      const sidebar = document.querySelector('[data-navigation-sidebar]');
+      const content = document.querySelector('[data-navigation-content]');
+      const openButton = document.querySelector('[data-nav-open-button]');
+      const closeButtons = document.querySelectorAll('[data-nav-close-button], [data-nav-backdrop]');
+      const backdrop = document.querySelector('[data-nav-backdrop]');
+      const desktopQuery = window.matchMedia('(min-width: 1024px)');
+
+      if (!sidebar || !content || !openButton) {
+        return;
+      }
+
+      function setExpanded(expanded) {
+        openButton.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      }
+
+      function showNavigation() {
+        if (desktopQuery.matches) {
+          sidebar.classList.remove('sidebar-collapsed');
+          content.classList.remove('sidebar-collapsed');
+          localStorage.setItem('mdetect-sidebar-collapsed', 'false');
+          setExpanded(true);
+          if (backdrop) {
+            backdrop.hidden = true;
+          }
+          document.body.classList.remove('nav-open');
+          return;
+        }
+
+        sidebar.classList.add('is-open');
+        document.body.classList.add('nav-open');
+        if (backdrop) {
+          backdrop.hidden = false;
+        }
+        setExpanded(true);
+      }
+
+      function hideNavigation() {
+        if (desktopQuery.matches) {
+          sidebar.classList.add('sidebar-collapsed');
+          content.classList.add('sidebar-collapsed');
+          localStorage.setItem('mdetect-sidebar-collapsed', 'true');
+          setExpanded(false);
+          return;
+        }
+
+        sidebar.classList.remove('is-open');
+        document.body.classList.remove('nav-open');
+        if (backdrop) {
+          backdrop.hidden = true;
+        }
+        setExpanded(false);
+      }
+
+      function syncNavigation() {
+        if (desktopQuery.matches) {
+          const collapsed = localStorage.getItem('mdetect-sidebar-collapsed') === 'true';
+          sidebar.classList.toggle('sidebar-collapsed', collapsed);
+          content.classList.toggle('sidebar-collapsed', collapsed);
+          setExpanded(!collapsed);
+          if (backdrop) {
+            backdrop.hidden = true;
+          }
+          document.body.classList.remove('nav-open');
+          return;
+        }
+
+        sidebar.classList.remove('sidebar-collapsed');
+        content.classList.remove('sidebar-collapsed');
+        setExpanded(sidebar.classList.contains('is-open'));
+      }
+
+      openButton.addEventListener('click', showNavigation);
+      closeButtons.forEach(function (button) {
+        button.addEventListener('click', hideNavigation);
+      });
+      desktopQuery.addEventListener('change', syncNavigation);
+      syncNavigation();
+    })();
+  </script>
+</body>
+</html>

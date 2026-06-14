@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Images - MDetect{% endblock %}
+{% block page_title %}Upload Images{% endblock %}
+
+{% block content %}
+  <form method="post" enctype="multipart/form-data" class="max-w-3xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{{ form.non_field_errors }}</div>
+    {% endif %}
+    <div class="grid gap-6">
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700">Object class</span>
+        <select name="object_class" class="mt-2 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+          <option value="">No class hint</option>
+          {% for object_class in form.fields.object_class.queryset %}
+            <option value="{{ object_class.id }}" {% if form.object_class.value|stringformat:"s" == object_class.id|stringformat:"s" %}selected{% endif %}>{{ object_class.display_name }}</option>
+          {% endfor %}
+        </select>
+        <span class="mt-1 block text-xs text-slate-500">Selected class is saved as the image hint and used by class tabs in Image Dataset and Labeling Workspace.</span>
+      </label>
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700">Multiple image files</span>
+        <input type="file" name="images" multiple accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="mt-2 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+        <span class="mt-1 block text-xs text-slate-500">Allowed: jpg, jpeg, png, webp. Large images are resized to a 1280px long edge.</span>
+      </label>
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700">ZIP upload</span>
+        <input type="file" name="zip_file" accept=".zip,application/zip" class="mt-2 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+        <span class="mt-1 block text-xs text-slate-500">Only image files are imported. Unsafe paths and non-image files are ignored. Large images are resized to a 1280px long edge.</span>
+      </label>
+    </div>
+    <div class="mt-6 flex gap-3">
+      <button type="submit" class="rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white">Upload</button>
+      <a href="{% url 'datasets:image_list' %}" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700">Cancel</a>
+    </div>
+  </form>
+{% endblock %}

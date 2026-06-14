@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}{{ job.name }} - MDetect{% endblock %}
+{% block page_title %}Training Job Detail{% endblock %}
+
+{% block content %}
+  <div class="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
+    <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <h2 class="text-base font-semibold text-slate-950">{{ job.name }}</h2>
+      <dl class="mt-4 space-y-2 text-sm">
+        <div><dt class="font-medium text-slate-500">Status</dt><dd>{{ job.get_status_display }}</dd></div>
+        <div><dt class="font-medium text-slate-500">Dataset</dt><dd>{{ job.dataset_version.name }}</dd></div>
+        <div><dt class="font-medium text-slate-500">Base model</dt><dd>{{ job.base_model }}</dd></div>
+        <div><dt class="font-medium text-slate-500">Image size</dt><dd>{{ job.imgsz }}</dd></div>
+        <div><dt class="font-medium text-slate-500">Epochs / batch</dt><dd>{{ job.epochs }} / {{ job.batch }}</dd></div>
+        <div><dt class="font-medium text-slate-500">Device</dt><dd>{{ job.device }}</dd></div>
+        <div><dt class="font-medium text-slate-500">Artifacts</dt><dd class="break-all font-mono text-xs">{{ job.artifacts_path|default:"-" }}</dd></div>
+      </dl>
+      <a href="{% url 'training:job_list' %}" class="mt-4 inline-block rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700">Back</a>
+    </section>
+    <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <h2 class="text-base font-semibold text-slate-950">Latest log</h2>
+      <pre class="mt-3 max-h-[60vh] overflow-auto rounded-md bg-slate-950 p-4 text-xs text-slate-100">{{ latest_log|default:"No log yet." }}</pre>
+      <h2 class="mt-5 text-base font-semibold text-slate-950">Metrics</h2>
+      <pre class="mt-3 overflow-auto rounded-md bg-slate-50 p-4 text-xs text-slate-700">{{ job.metrics_json }}</pre>
+      {% if job.error_message %}
+        <div class="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{{ job.error_message }}</div>
+      {% endif %}
+    </section>
+  </div>
+{% endblock %}

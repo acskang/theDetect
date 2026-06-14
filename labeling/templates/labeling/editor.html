@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+
+{% block title %}Label {{ image.original_filename }} - MDetect{% endblock %}
+{% block page_title %}Label Image{% endblock %}
+
+{% block content %}
+  {{ boxes_json|json_script:"initial-boxes" }}
+  {{ classes_json|json_script:"object-classes" }}
+
+  <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+    <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-semibold text-slate-950">{{ image.original_filename }}</h2>
+          <p class="text-sm text-slate-600">Original size: {{ image.width }} x {{ image.height }} px</p>
+        </div>
+        <div class="flex gap-2">
+          <a href="{% url 'labeling:workspace' %}{% if workspace_query_string %}?{{ workspace_query_string }}{% endif %}" class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700">List</a>
+          <a href="{% url 'labeling:next_image' image.id %}{% if workspace_query_string %}?{{ workspace_query_string }}{% endif %}" class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700">Next image</a>
+        </div>
+      </div>
+
+      <div class="overflow-auto rounded-lg bg-slate-950 p-3">
+        <div
+          data-label-stage
+          class="relative mx-auto select-none"
+          style="max-width: 100%; touch-action: none;"
+        >
+          <img
+            data-label-image
+            src="{{ image.file.url }}"
+            alt="{{ image.original_filename }}"
+            class="block max-h-[70vh] max-w-full rounded-md"
+            draggable="false"
+          >
+        </div>
+      </div>
+    </section>
+
+    <aside class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <h3 class="text-sm font-semibold text-slate-950">Controls</h3>
+      <label class="mt-4 block">
+        <span class="text-sm font-medium text-slate-700">Object class</span>
+        <select data-object-class-select class="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+          {% for object_class in object_classes %}
+            <option value="{{ object_class.id }}" {% if selected_class and selected_class.id == object_class.id %}selected{% endif %}>{{ object_class.display_name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <div class="mt-4 grid gap-2">
+        <button type="button" data-add-rough-box class="rounded-md border border-blue-300 px-4 py-2 text-sm font-medium text-blue-700">Add rough box</button>
+        <button type="button" data-save-boxes class="rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white">Save boxes</button>
+        <button type="button" data-delete-selected-box class="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700">Delete selected box</button>
+      </div>
+
+      <div class="mt-4 rounded-md bg-slate-50 p-3 text-sm text-slate-700">
+        <p>Status: <span data-label-status></span></p>
+        <p class="mt-1">Boxes: <span data-label-box-count></span></p>
+      </div>
+
+      <div class="mt-4 space-y-2" data-saved-boxes>
+        <h3 class="text-sm font-semibold text-slate-950">Saved boxes</h3>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    (function () {
+      const stage = document.querySelector('[data-label-stage]');
+      const image = document.querySelector('[data-label-image]');
+      const classSelect = document.querySelector('[data-object-class-select]');
+      const addRoughBoxButton = document.querySelector('[data-add-rough-box]');
+      const saveButton = document.querySelector('[data-save-boxes]');
+      const deleteButton = document.querySelector('[data-delete-selected-box]');
+      const statusEl = document.querySelector('[data-label-status]');
+      const countEl = document.querySelector('[data-label-box-count]');
+      const savedBoxesEl = document.querySelector('[data-saved-boxes]');
+      const boxesScript = document.getElementById('initial-boxes');
+      const classesScript = document.getElementById('object-classes');
+
+      if (!stage || !image || !classSelect || !addRoughBoxButton || !saveButton || !deleteButton || !statusEl || !countEl || !savedBoxesEl || !boxesScript || !classesScript) {
+        return;
+      }
+
+      let boxes = JSON.parse(boxesScript.textContent);
+      const classes = JSON.parse(classesScript.textContent);
+      let selectedBoxIndex = null;
+      let isDrawing = false;
+      let isResizing = false;
+      let resizingIndex = null;
+      let resizingCorner = null;
+      let startPoint = null;
+      let previewEl = null;
+      const naturalImageWidth = {{ image.width }};
+      const naturalImageHeight = {{ image.height }};
+
+      function setStatus(message) {
+        statusEl.textContent = message;
+      }
+
+      function setCount() {
+        countEl.textContent = String(boxes.length);
+      }
+
+      function classItem(id) {
+        return classes.find((item) => Number(item.id) === Number(id));
+      }
+
+      function className(id) {
+        const item = classItem(id);
+        return item ? item.name : 'class';
+      }
+
+      function classColor(id) {
+        const item = classItem(id);
+        return item ? item.color : '#2563eb';
+      }
+
+      function imageRect() {
+        return image.getBoundingClientRect();
+      }
+
+      function scaleX() {
+        const rect = imageRect();
+        return (rect.width || 1) / naturalImageWidth;
+      }
+
+      function scaleY() {
+        const rect = imageRect();
+        return (rect.height || 1) / naturalImageHeight;
+      }
+
+      function localPoint(event) {
+        const rect = imageRect();
+        const rawX = event.clientX - rect.left;
+        const rawY = event.clientY - rect.top;
+        return {
+          x: Math.max(0, Math.min(rawX, rect.width)),
+          y: Math.max(0, Math.min(rawY, rect.height)),
+          inside: rawX >= 0 && rawX <= rect.width && rawY >= 0 && rawY <= rect.height
+        };
+      }
+
+      function toOriginalBox(start, end, classId) {
+        const x1 = Math.min(start.x, end.x);
+        const y1 = Math.min(start.y, end.y);
+        const x2 = Math.max(start.x, end.x);
+        const y2 = Math.max(start.y, end.y);
+        return {
+          object_class_id: Number(classId),
+          x_min: Math.round(x1 / scaleX()),
+          y_min: Math.round(y1 / scaleY()),
+          x_max: Math.round(x2 / scaleX()),
+          y_max: Math.round(y2 / scaleY())
+        };
+      }
+
+      function normalizeBox(box) {
+        const xMin = Math.max(0, Math.min(box.x_min, box.x_max));
+        const yMin = Math.max(0, Math.min(box.y_min, box.y_max));
+        const xMax = Math.min(naturalImageWidth, Math.max(box.x_min, box.x_max));
+        const yMax = Math.min(naturalImageHeight, Math.max(box.y_min, box.y_max));
+        box.x_min = xMin;
+        box.y_min = yMin;
+        box.x_max = Math.max(xMin + 1, xMax);
+        box.y_max = Math.max(yMin + 1, yMax);
+      }
+
+      function resizeBox(box, point, corner) {
+        const x = Math.round(point.x / scaleX());
+        const y = Math.round(point.y / scaleY());
+        if (corner.includes('l')) {
+          box.x_min = x;
+        }
+        if (corner.includes('r')) {
+          box.x_max = x;
+        }
+        if (corner.includes('t')) {
+          box.y_min = y;
+        }
+        if (corner.includes('b')) {
+          box.y_max = y;
+        }
+        normalizeBox(box);
+      }
+
+      function boxStyle(box) {
+        return [
+          `left:${box.x_min * scaleX()}px`,
+          `top:${box.y_min * scaleY()}px`,
+          `width:${(box.x_max - box.x_min) * scaleX()}px`,
+          `height:${(box.y_max - box.y_min) * scaleY()}px`,
+          `border-color:${classColor(box.object_class_id)}`
+        ].join(';');
+      }
+
+      function clearFallbackBoxes() {
+        stage.querySelectorAll('[data-fallback-box], [data-fallback-preview]').forEach((node) => node.remove());
+      }
+
+      function renderSavedBoxes() {
+        savedBoxesEl.querySelectorAll('[data-fallback-saved-box]').forEach((node) => node.remove());
+        boxes.forEach((box, index) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.dataset.fallbackSavedBox = 'true';
+          button.className = `w-full rounded-md border px-3 py-2 text-left text-sm ${selectedBoxIndex === index ? 'border-blue-500 bg-blue-50' : 'border-slate-200'}`;
+          button.innerHTML = `<span class="font-medium"></span><span class="block text-xs text-slate-500"></span>`;
+          button.querySelector('span:first-child').textContent = className(box.object_class_id);
+          button.querySelector('span:last-child').textContent = `${box.x_min}, ${box.y_min}, ${box.x_max}, ${box.y_max}`;
+          button.addEventListener('click', () => {
+            selectedBoxIndex = index;
+            classSelect.value = String(box.object_class_id);
+            render();
+          });
+          savedBoxesEl.appendChild(button);
+        });
+      }
+
+      function render() {
+        clearFallbackBoxes();
+        boxes.forEach((box, index) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.dataset.fallbackBox = 'true';
+          button.className = `absolute border-2 bg-transparent ${selectedBoxIndex === index ? 'ring-2 ring-white' : ''}`;
+          button.style.cssText = boxStyle(box);
+          button.title = className(box.object_class_id);
+          button.innerHTML = `
+            <span class="absolute -top-6 left-0 rounded-sm px-1.5 py-0.5 text-xs font-medium text-white"></span>
+            <span data-resize-corner="tl" class="absolute -left-1.5 -top-1.5 h-4 w-4 cursor-nwse-resize rounded-sm border border-white"></span>
+            <span data-resize-corner="tr" class="absolute -right-1.5 -top-1.5 h-4 w-4 cursor-nesw-resize rounded-sm border border-white"></span>
+            <span data-resize-corner="bl" class="absolute -bottom-1.5 -left-1.5 h-4 w-4 cursor-nesw-resize rounded-sm border border-white"></span>
+            <span data-resize-corner="br" class="absolute -bottom-1.5 -right-1.5 h-4 w-4 cursor-nwse-resize rounded-sm border border-white"></span>
+          `;
+          const label = button.querySelector('span:first-child');
+          label.textContent = className(box.object_class_id);
+          label.style.background = classColor(box.object_class_id);
+          button.querySelectorAll('[data-resize-corner]').forEach((handle) => {
+            handle.style.background = classColor(box.object_class_id);
+          });
+          button.addEventListener('pointerdown', (event) => event.stopPropagation());
+          button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            selectedBoxIndex = index;
+            classSelect.value = String(box.object_class_id);
+            render();
+          });
+          button.querySelectorAll('[data-resize-corner]').forEach((handle) => {
+            handle.addEventListener('pointerdown', (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              selectedBoxIndex = index;
+              resizingIndex = index;
+              resizingCorner = handle.dataset.resizeCorner;
+              isResizing = true;
+              stage.setPointerCapture?.(event.pointerId);
+            });
+          });
+          stage.appendChild(button);
+        });
+        setCount();
+        renderSavedBoxes();
+      }
+
+      function renderPreview(box) {
+        if (!previewEl) {
+          previewEl = document.createElement('div');
+          previewEl.dataset.fallbackPreview = 'true';
+          previewEl.className = 'absolute border-2 border-dashed border-white bg-white/10';
+          stage.appendChild(previewEl);
+        }
+        previewEl.style.cssText = boxStyle(box);
+      }
+
+      function clearPreview() {
+        if (previewEl) {
+          previewEl.remove();
+          previewEl = null;
+        }
+      }
+
+      stage.addEventListener('pointerdown', (event) => {
+        if (event.button !== undefined && event.button !== 0) return;
+        const point = localPoint(event);
+        if (!point.inside || !classSelect.value) return;
+        event.preventDefault();
+        isDrawing = true;
+        startPoint = point;
+        stage.setPointerCapture?.(event.pointerId);
+        setStatus('Drawing...');
+      });
+
+      stage.addEventListener('pointermove', (event) => {
+        if (isResizing && resizingIndex !== null) {
+          const point = localPoint(event);
+          const box = boxes[resizingIndex];
+          resizeBox(box, point, resizingCorner || 'br');
+          render();
+          return;
+        }
+        if (!isDrawing || !startPoint) return;
+        renderPreview(toOriginalBox(startPoint, localPoint(event), classSelect.value));
+      });
+
+      stage.addEventListener('pointerup', (event) => {
+        if (isResizing) {
+          isResizing = false;
+          resizingIndex = null;
+          resizingCorner = null;
+          stage.releasePointerCapture?.(event.pointerId);
+          setStatus('Ready');
+          render();
+          return;
+        }
+        if (!isDrawing || !startPoint) return;
+        const box = toOriginalBox(startPoint, localPoint(event), classSelect.value);
+        isDrawing = false;
+        startPoint = null;
+        clearPreview();
+        stage.releasePointerCapture?.(event.pointerId);
+        if (box.x_max > box.x_min && box.y_max > box.y_min) {
+          boxes.push(box);
+          selectedBoxIndex = boxes.length - 1;
+          setStatus('Box added. Click Save boxes.');
+          render();
+        } else {
+          setStatus('Box was too small.');
+        }
+      });
+
+      stage.addEventListener('pointercancel', () => {
+        isDrawing = false;
+        isResizing = false;
+        resizingIndex = null;
+        resizingCorner = null;
+        startPoint = null;
+        clearPreview();
+        setStatus('Ready');
+      });
+
+      addRoughBoxButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (!classSelect.value) return;
+        const marginX = Math.round(naturalImageWidth * 0.18);
+        const marginY = Math.round(naturalImageHeight * 0.22);
+        boxes.push({
+          object_class_id: Number(classSelect.value),
+          x_min: marginX,
+          y_min: marginY,
+          x_max: naturalImageWidth - marginX,
+          y_max: naturalImageHeight - marginY
+        });
+        selectedBoxIndex = boxes.length - 1;
+        setStatus('Rough box added. Adjust corners, then click Save boxes.');
+        render();
+      });
+
+      deleteButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (selectedBoxIndex === null) return;
+        boxes.splice(selectedBoxIndex, 1);
+        selectedBoxIndex = null;
+        setStatus('Selected box deleted. Click Save boxes.');
+        render();
+      });
+
+      saveButton.addEventListener('click', async (event) => {
+        event.preventDefault();
+        setStatus('Saving...');
+        const response = await fetch("{% url 'labeling:save_boxes' image.id %}", {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken()
+          },
+          body: JSON.stringify({ boxes })
+        });
+        const data = await response.json();
+        if (response.ok && data.saved) {
+          setStatus(`Saved ${data.count} box(es). Image marked labeled.`);
+        } else {
+          setStatus((data.errors || ['Save failed']).join(' '));
+        }
+      });
+
+      function csrfToken() {
+        const match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : '';
+      }
+
+      image.addEventListener('load', render);
+      setStatus('Ready');
+      render();
+    })();
+  </script>
+{% endblock %}

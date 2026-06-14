@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Model Registry - MDetect{% endblock %}
+{% block page_title %}Model Registry{% endblock %}
+
+{% block content %}
+  <section class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+    <table class="min-w-full divide-y divide-slate-200 text-sm">
+      <thead class="bg-slate-50 text-left text-xs font-semibold uppercase text-slate-500">
+        <tr>
+          <th class="px-4 py-3">Model</th>
+          <th class="px-4 py-3">Training Job</th>
+          <th class="px-4 py-3">Path</th>
+          <th class="px-4 py-3">Active</th>
+          <th class="px-4 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-200">
+        {% for model in models %}
+          <tr>
+            <td class="px-4 py-3 font-medium text-slate-900">{{ model.name }}</td>
+            <td class="px-4 py-3">{{ model.training_job.name }}</td>
+            <td class="px-4 py-3 font-mono text-xs text-slate-600">{{ model.model_path }}</td>
+            <td class="px-4 py-3">{{ model.is_active_server_model|yesno:"Yes,No" }}</td>
+            <td class="px-4 py-3 text-right">
+              {% if not model.is_active_server_model %}
+                <form method="post" action="{% url 'models_registry:activate' model.id %}">
+                  {% csrf_token %}
+                  <button type="submit" class="font-medium text-blue-700">Set active</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="px-4 py-6 text-center text-slate-500">No trained models registered yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

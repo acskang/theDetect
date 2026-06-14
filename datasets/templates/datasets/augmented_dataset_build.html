@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Augmented Dataset Build - MDetect{% endblock %}
+{% block page_title %}Augmented Dataset Build{% endblock %}
+
+{% block content %}
+  <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+    <form method="post" class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{{ form.non_field_errors }}</div>
+      {% endif %}
+      <div class="mb-5 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+        <p>이 화면은 라벨링된 원본 이미지와 Bounding Box를 기준으로 증강 이미지를 생성합니다.</p>
+        <p class="mt-1">원본 UploadedImage와 LabelBox는 수정하지 않습니다.</p>
+        <p class="mt-1">생성된 증강 이미지는 새 DatasetVersion 폴더에만 저장됩니다.</p>
+        <p class="mt-1">색상 class 학습을 위해 hue/saturation 변경은 사용하지 않습니다.</p>
+      </div>
+      <div class="grid gap-4 sm:grid-cols-2">
+        {% for field in form %}
+          <label class="{% if field.field.widget.input_type == 'checkbox' %}flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2{% else %}block{% endif %} {% if field.name == 'name' or field.name == 'description' or field.name == 'build_memo' %}sm:col-span-2{% endif %}">
+            {% if field.field.widget.input_type == 'checkbox' %}
+              {{ field }}
+              <span class="text-sm font-medium text-slate-700">{{ field.label }}</span>
+            {% else %}
+              <span class="text-sm font-medium text-slate-700">{{ field.label }}</span>
+              {{ field }}
+            {% endif %}
+            {% if field.help_text %}<span class="mt-1 block text-xs text-slate-500">{{ field.help_text }}</span>{% endif %}
+            {% if field.errors %}<span class="mt-1 block text-sm text-red-700">{{ field.errors }}</span>{% endif %}
+          </label>
+        {% endfor %}
+      </div>
+      <div class="mt-6 flex gap-3">
+        <button type="submit" class="rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white">Build Augmented DatasetVersion</button>
+        <a href="{% url 'datasets:dataset_version_list' %}" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700">Versions</a>
+      </div>
+    </form>
+
+    <aside class="space-y-4">
+      <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 class="text-base font-semibold text-slate-950">Build Preview</h2>
+        <div class="mt-3 space-y-2 text-sm">
+          {% for row in preview.rows %}
+            <div class="flex justify-between gap-3 rounded-md border border-slate-200 px-3 py-2">
+              <span class="font-medium text-slate-800">{{ row.name }}</span>
+              <span class="text-slate-600">original {{ row.original_count }} → target {{ row.target_count }}</span>
+            </div>
+          {% endfor %}
+        </div>
+        <p class="mt-4 text-sm font-medium text-slate-800">Expected total: about {{ preview.expected_total }} images</p>
+        {% if preview.has_low_source_count %}
+          <p class="mt-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">Warning: only a small number of original images exists for at least one class. This build is recommended for smoke/trial only.</p>
+        {% endif %}
+      </section>
+
+      <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 class="text-base font-semibold text-slate-950">Class Balance Warning</h2>
+        {% if warnings %}
+          <ul class="mt-3 space-y-2 text-sm text-amber-800">
+            {% for warning in warnings %}
+              <li class="rounded-md bg-amber-50 px-3 py-2">{{ warning }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="mt-3 text-sm text-slate-600">No warnings detected from current labels.</p>
+        {% endif %}
+      </section>
+    </aside>
+  </div>
+{% endblock %}

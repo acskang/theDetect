@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Image Dataset - MDetect{% endblock %}
+{% block page_title %}Image Dataset{% endblock %}
+
+{% block content %}
+  <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <p class="text-sm text-slate-600">Uploaded source images for later labeling and dataset builds.</p>
+    <div class="flex flex-wrap gap-2">
+      <button
+        type="submit"
+        form="bulk-delete-images-form"
+        class="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700"
+        onclick="return confirm('Delete selected images and their labels?');"
+      >Delete selected</button>
+      <a href="{% url 'datasets:image_upload' %}{% if selected_class %}?class={{ selected_class.id }}{% endif %}" class="rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white">Upload images</a>
+    </div>
+  </div>
+
+  <nav class="mb-4 flex gap-2 overflow-x-auto rounded-lg border border-slate-200 bg-white p-2 text-sm shadow-sm" aria-label="Object class tabs">
+    <a
+      href="{% url 'datasets:image_list' %}"
+      class="whitespace-nowrap rounded-md px-3 py-2 font-medium {% if not selected_class %}bg-slate-950 text-white{% else %}text-slate-700 hover:bg-slate-100{% endif %}"
+    >All</a>
+    {% for tab in class_tabs %}
+      <a
+        href="{% url 'datasets:image_list' %}?class={{ tab.object_class.id }}"
+        class="whitespace-nowrap rounded-md px-3 py-2 font-medium {% if selected_class and selected_class.id == tab.object_class.id %}bg-slate-950 text-white{% else %}text-slate-700 hover:bg-slate-100{% endif %}"
+      >
+        {{ tab.object_class.display_name }}
+        <span class="ml-1 text-xs opacity-70">{{ tab.count }}</span>
+      </a>
+    {% endfor %}
+  </nav>
+
+  <section class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+    <form id="bulk-delete-images-form" method="post" action="{% url 'datasets:image_bulk_delete' %}">
+      {% csrf_token %}
+      {% if selected_class %}
+        <input type="hidden" name="class" value="{{ selected_class.id }}">
+      {% endif %}
+      <table class="min-w-full divide-y divide-slate-200 text-sm">
+        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase text-slate-500">
+          <tr>
+            <th class="px-4 py-3">
+              <input type="checkbox" data-select-all-images aria-label="Select all images">
+            </th>
+            <th class="px-4 py-3">File</th>
+            <th class="px-4 py-3">Size</th>
+            <th class="px-4 py-3">Source</th>
+            <th class="px-4 py-3">Hint</th>
+            <th class="px-4 py-3">Status</th>
+            <th class="px-4 py-3">Uploaded</th>
+            <th class="px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200">
+          {% for image in images %}
+            <tr>
+              <td class="px-4 py-3">
+                <input type="checkbox" name="image_ids" value="{{ image.id }}" data-image-checkbox aria-label="Select {{ image.original_filename }}">
+              </td>
+              <td class="px-4 py-3">
+                <div class="font-medium text-slate-900">{{ image.original_filename }}</div>
+                <div class="text-xs text-slate-500">{{ image.width }} x {{ image.height }} px</div>
+              </td>
+              <td class="px-4 py-3">{{ image.file_size }} bytes</td>
+              <td class="px-4 py-3">{{ image.get_upload_source_display }}</td>
+              <td class="px-4 py-3">{{ image.hint_class|default:"-" }}</td>
+              <td class="px-4 py-3">{{ image.get_status_display }}</td>
+              <td class="px-4 py-3">{{ image.created_at }}</td>
+              <td class="px-4 py-3 text-right">
+                <button
+                  type="submit"
+                  form="delete-image-{{ image.id }}"
+                  class="font-medium text-red-700"
+                  onclick="return confirm('Delete this image and its labels?');"
+                >Delete</button>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="8" class="px-4 py-6 text-center text-slate-500">No uploaded images yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </form>
+  </section>
+  {% for image in images %}
+    <form id="delete-image-{{ image.id }}" method="post" action="{% url 'datasets:image_delete' image.id %}" class="hidden">
+      {% csrf_token %}
+      {% if selected_class %}
+        <input type="hidden" name="class" value="{{ selected_class.id }}">
+      {% endif %}
+    </form>
+  {% endfor %}
+  <script>
+    (function () {
+      const selectAll = document.querySelector('[data-select-all-images]');
+      const checkboxes = Array.from(document.querySelectorAll('[data-image-checkbox]'));
+      if (!selectAll) return;
+      selectAll.addEventListener('change', function () {
+        checkboxes.forEach((checkbox) => {
+          checkbox.checked = selectAll.checked;
+        });
+      });
+      checkboxes.forEach((checkbox) => {
+        checkbox.addEventListener('change', function () {
+          const checkedCount = checkboxes.filter((item) => item.checked).length;
+          selectAll.checked = checkedCount === checkboxes.length;
+          selectAll.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+        });
+      });
+    })();
+  </script>
+{% endblock %}

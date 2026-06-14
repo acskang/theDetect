@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}API Test - theDetect{% endblock %}
+{% block page_title %}API Test{% endblock %}
+
+{% block content %}
+  <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-200 px-5 py-4">
+      <h2 class="text-base font-semibold text-slate-950">Endpoints</h2>
+      <p class="mt-1 text-sm text-slate-600">Step 02 exposes health, JWT login/refresh, and a protected test API.</p>
+    </div>
+    <div class="divide-y divide-slate-200">
+      <div class="p-5">
+        <p class="font-mono text-sm text-slate-800">GET /api/health/</p>
+        <pre class="mt-3 overflow-x-auto rounded-md bg-slate-950 p-4 text-sm text-slate-100">curl {{ service_base_url }}/api/health/</pre>
+      </div>
+      <div class="p-5">
+        <p class="font-mono text-sm text-slate-800">POST /api/auth/login/</p>
+        <pre class="mt-3 overflow-x-auto rounded-md bg-slate-950 p-4 text-sm text-slate-100">curl -X POST {{ service_base_url }}/api/auth/login/ \
+  -H "Content-Type: application/json" \
+  -d '{"username":"$MDETECT_TEST_USERNAME","password":"$MDETECT_TEST_PASSWORD"}'</pre>
+      </div>
+      <div class="p-5">
+        <p class="font-mono text-sm text-slate-800">POST /api/auth/refresh/</p>
+        <pre class="mt-3 overflow-x-auto rounded-md bg-slate-950 p-4 text-sm text-slate-100">curl -X POST {{ service_base_url }}/api/auth/refresh/ \
+  -H "Content-Type: application/json" \
+  -d '{"refresh":"&lt;refresh-token&gt;"}'</pre>
+      </div>
+      <div class="p-5">
+        <p class="font-mono text-sm text-slate-800">GET /api/auth/protected-test/</p>
+        <pre class="mt-3 overflow-x-auto rounded-md bg-slate-950 p-4 text-sm text-slate-100">curl {{ service_base_url }}/api/auth/protected-test/ \
+  -H "Authorization: Bearer &lt;access-token&gt;"</pre>
+      </div>
+    </div>
+  </section>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}{{ mode }} Object Class - MDetect{% endblock %}
+{% block page_title %}{{ mode }} Object Class{% endblock %}
+
+{% block content %}
+  <form method="post" class="max-w-2xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{{ form.non_field_errors }}</div>
+    {% endif %}
+    <div class="grid gap-4">
+      {% for field in form %}
+        <label class="block">
+          <span class="text-sm font-medium text-slate-700">{{ field.label }}</span>
+          {{ field }}
+          {% if field.errors %}<span class="mt-1 block text-sm text-red-700">{{ field.errors }}</span>{% endif %}
+        </label>
+      {% endfor %}
+    </div>
+    <div class="mt-6 flex gap-3">
+      <button type="submit" class="rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white">Save</button>
+      <a href="{% url 'datasets:object_class_list' %}" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700">Cancel</a>
+    </div>
+  </form>
+{% endblock %}

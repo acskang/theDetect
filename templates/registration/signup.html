@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Sign Up - theDetect{% endblock %}
+{% block page_title %}Sign Up{% endblock %}
+
+{% block content %}
+  <section class="mx-auto max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next }}">
+      {% if form.non_field_errors %}
+        <div class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      {% for field in form %}
+        <div>
+          <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-slate-700">{{ field.label }}</label>
+          <input
+            id="{{ field.id_for_label }}"
+            name="{{ field.html_name }}"
+            value="{{ field.value|default_if_none:'' }}"
+            type="{% if 'password' in field.name %}password{% elif field.name == 'phone_number' %}tel{% else %}text{% endif %}"
+            autocomplete="{% if field.name == 'phone_number' %}tel{% elif field.name == 'username' %}username{% else %}new-password{% endif %}"
+            class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            required
+          >
+          {% if field.help_text %}<p class="mt-1 text-xs text-slate-500">{{ field.help_text }}</p>{% endif %}
+          {% for error in field.errors %}
+            <p class="mt-1 text-xs text-red-700">{{ error }}</p>
+          {% endfor %}
+        </div>
+      {% endfor %}
+
+      <button type="submit" class="w-full rounded-md bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800">
+        Create account
+      </button>
+      <p class="text-center text-sm text-slate-600">
+        Already have an account?
+        <a href="{% url 'login' %}{% if next %}?next={{ next|urlencode }}{% endif %}" class="font-medium text-blue-700">Sign in</a>
+      </p>
+    </form>
+  </section>
+{% endblock %}

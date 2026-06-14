@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Dataset Versions - MDetect{% endblock %}
+{% block page_title %}Dataset Versions{% endblock %}
+
+{% block content %}
+  <div class="mb-4 flex items-center justify-between">
+    <p class="text-sm text-slate-600">Built YOLO dataset versions for training.</p>
+    <div class="flex gap-2">
+      <a href="{% url 'datasets:dataset_build' %}" class="rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white">Build dataset</a>
+      <a href="{% url 'datasets:augmented_dataset_build' %}" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700">Build augmented</a>
+    </div>
+  </div>
+  <section class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+    <table class="min-w-full divide-y divide-slate-200 text-sm">
+      <thead class="bg-slate-50 text-left text-xs font-semibold uppercase text-slate-500">
+        <tr>
+          <th class="px-4 py-3">Name</th>
+          <th class="px-4 py-3">Type</th>
+          <th class="px-4 py-3">Images</th>
+          <th class="px-4 py-3">Status</th>
+          <th class="px-4 py-3">Split</th>
+          <th class="px-4 py-3">Output</th>
+          <th class="px-4 py-3">Created</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-200">
+        {% for version in versions %}
+          <tr>
+            <td class="px-4 py-3 font-medium text-slate-900">{{ version.name }}</td>
+            <td class="px-4 py-3">{{ version.build_config_json.build_type|default:"unknown" }}</td>
+            <td class="px-4 py-3">{{ version.class_summary_json.image_count|default:"-" }}</td>
+            <td class="px-4 py-3">{{ version.get_status_display }}</td>
+            <td class="px-4 py-3">{{ version.train_ratio }}/{{ version.val_ratio }}/{{ version.test_ratio }}</td>
+            <td class="px-4 py-3 font-mono text-xs text-slate-600">{{ version.output_path }}</td>
+            <td class="px-4 py-3">{{ version.created_at }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="px-4 py-6 text-center text-slate-500">No dataset versions yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}
