@@ -34,6 +34,34 @@ data class ModelMetadata(
     val iouThreshold: Float = 0.45f
 )
 
+data class ModelFileState(
+    val modelExists: Boolean = false,
+    val labelsExists: Boolean = false,
+    val metadataExists: Boolean = false,
+    val labelsCount: Int = 0,
+    val modelBytes: Long = 0L
+) {
+    val summary: String
+        get() = "model=${yesNo(modelExists)} labels=${yesNo(labelsExists)} metadata=${yesNo(metadataExists)} labels_count=$labelsCount"
+
+    private fun yesNo(value: Boolean): String = if (value) "yes" else "no"
+}
+
+data class OnDeviceDebugState(
+    val status: String = "Model not loaded",
+    val modelVersion: String = "bundled-none",
+    val inputShape: String = "-",
+    val inputDtype: String = "-",
+    val outputCount: Int = 0,
+    val outputShapes: String = "-",
+    val outputDtypes: String = "-",
+    val decoderLayout: String = "-",
+    val labelsCount: Int = 0,
+    val metadataInputSize: Int = 640,
+    val detectionsCount: Int = 0,
+    val lastError: String = ""
+)
+
 data class AppSettings(
     val serverUrl: String,
     val detectionMode: DetectionMode = DetectionMode.SERVER,
@@ -46,7 +74,18 @@ data class AppSettings(
 
 data class TokenState(
     val access: String = "",
-    val refresh: String = ""
+    val refresh: String = "",
+    val deviceToken: String = ""
 ) {
     val hasAccess: Boolean get() = access.isNotBlank()
+    val canRestoreSession: Boolean get() = refresh.isNotBlank() && deviceToken.isNotBlank()
 }
+
+data class AuthUserState(
+    val id: Long = 0L,
+    val username: String = "",
+    val phoneNumber: String = "",
+    val approvalStatus: String = "",
+    val connected: Boolean = false,
+    val message: String = ""
+)

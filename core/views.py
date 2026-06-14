@@ -1,16 +1,22 @@
 import os
+import json
+import re
 import time
+from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.core.management import call_command
 from django.db import connection
-from django.http import HttpResponse, JsonResponse
+from django.db.models import Count, F, Q
+from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.views.decorators.http import require_GET, require_POST
 
 from datasets.models import DatasetVersion, ObjectClass, UploadedImage
+from deployment.models import AndroidModelPackage
 from detection.models import DetectionLog
 from detection.services.yolo_inference import (
     InferenceError,
@@ -18,8 +24,11 @@ from detection.services.yolo_inference import (
     run_yolo_inference,
     validate_uploaded_image,
 )
+from labeling.models import LabelBox
 from models_registry.models import TrainedModel
+from training.models import TrainingJob
 from . import manual_services
+from .llama_chat import LlamaChatServiceError, LlamaChatValidationError, build_chat_response
 
 
 def healthz(request):
@@ -43,7 +52,37 @@ def landing(request):
         'service_name': settings.SERVICE_NAME,
         'service_base_url': settings.SERVICE_BASE_URL,
         'login_form': AuthenticationForm(request),
+        'chat_widget_enabled': getattr(settings, 'CHAT_WIDGET_ENABLED', True),
     })
+
+
+@require_POST
+def llama_chat(request):
+    if not getattr(settings, 'CHAT_WIDGET_ENABLED', True):
+        return JsonResponse(
+            {'ok': False, 'error': 'AI 채팅 기능이 현재 비활성화되어 있습니다.'},
+            status=503,
+        )
+    try:
+        body = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'ok': False, 'error': 'Invalid JSON payload.'}, status=400)
+    try:
+        result = build_chat_response(
+            message=body.get('message'),
+            history=body.get('history', []),
+            page=body.get('page'),
+        )
+    except LlamaChatValidationError as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+    except LlamaChatServiceError as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=503)
+    except Exception:
+        return JsonResponse(
+            {'ok': False, 'error': '지금은 AI 챗봇 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.'},
+            status=503,
+        )
+    return JsonResponse(result)
 
 
 @login_required
@@ -78,7 +117,6 @@ def dashboard(request):
     return render(request, 'core/dashboard.html', context)
 
 
-@login_required
 def manual_home(request):
     stage = request.GET.get('stage') or None
     selected_doc = request.GET.get('doc') or manual_services.first_doc_path(stage)
@@ -89,14 +127,12 @@ def manual_home(request):
     return render_manual(request, current_doc=None, current_stage=stage)
 
 
-@login_required
 def manual_view(request, doc_path):
     current_doc = manual_services.load_document(doc_path)
     current_stage = request.GET.get('stage') or current_doc.stage
     return render_manual(request, current_doc=current_doc, current_stage=current_stage)
 
 
-@login_required
 def manual_raw(request, doc_path):
     current_doc = manual_services.load_document(doc_path)
     response = HttpResponse(current_doc.raw_content, content_type='text/plain; charset=utf-8')
@@ -123,6 +159,7 @@ def render_manual(request, current_doc, current_stage=None):
         'manual_stage_options': stage_options,
         'manual_stage_file_map': stage_file_map,
         'manual_stage_groups': stage_groups,
+        'manual_apk_releases': manual_services.latest_apk_releases(),
         'current_stage_files': stage_file_map.get(current_stage, []),
         'current_stage': current_stage,
         'current_doc': current_doc,
@@ -132,9 +169,243 @@ def render_manual(request, current_doc, current_stage=None):
     })
 
 
+@require_GET
+def manual_apk_download(request):
+    releases = manual_services.latest_apk_releases(limit=1)
+    if not releases:
+        return HttpResponse(status=404)
+    release = releases[0]
+    if not release.path.exists() or not release.path.is_file():
+        return HttpResponse(status=404)
+    return FileResponse(
+        release.path.open('rb'),
+        as_attachment=True,
+        filename=release.download_filename,
+        content_type='application/vnd.android.package-archive',
+    )
+
+
 @login_required
 def api_test(request):
     return render(request, 'core/api_test.html', {'service_base_url': settings.SERVICE_BASE_URL})
+
+
+@login_required
+def detection_logs(request):
+    mode = request.GET.get('mode', '').strip()
+    model_version = request.GET.get('model_version', '').strip()
+    logs = DetectionLog.objects.select_related('user').order_by('-created_at')
+    if mode:
+        logs = logs.filter(mode=mode)
+    if model_version:
+        logs = logs.filter(model_version__icontains=model_version)
+    logs = logs[:100]
+    return render(request, 'core/detection_logs.html', {
+        'logs': logs,
+        'mode': mode,
+        'model_version': model_version,
+        'total_count': DetectionLog.objects.count(),
+        'mode_choices': DetectionLog.Mode.choices,
+    })
+
+
+def _display(value, fallback='-'):
+    return fallback if value in (None, '') else value
+
+
+def _format_bytes(value):
+    try:
+        size = float(value)
+    except (TypeError, ValueError):
+        return 'Not configured'
+    for unit in ('B', 'KB', 'MB', 'GB'):
+        if size < 1024 or unit == 'GB':
+            return f'{size:.0f} {unit}'
+        size /= 1024
+    return f'{size} B'
+
+
+def _path_exists(path):
+    if not path:
+        return False
+    try:
+        return Path(path).exists()
+    except TypeError:
+        return False
+
+
+def _file_field_exists(file_field):
+    try:
+        return bool(file_field and file_field.name and file_field.storage.exists(file_field.name))
+    except Exception:
+        return False
+
+
+def _android_build_value(key, fallback='-'):
+    gradle_path = settings.BASE_DIR / 'mobile' / 'MDetect' / 'app' / 'build.gradle.kts'
+    try:
+        text = gradle_path.read_text(encoding='utf-8')
+    except OSError:
+        return fallback
+    match = re.search(rf'buildConfigField\("String",\s*"{re.escape(key)}",\s*"\\\"([^"]+)\\\""\)', text)
+    return match.group(1) if match else fallback
+
+
+def _check_item(label, ok, detail='', warning=False):
+    if ok:
+        status = 'OK'
+        tone = 'ok'
+    elif warning:
+        status = 'Warning'
+        tone = 'warning'
+    else:
+        status = 'Missing'
+        tone = 'missing'
+    return {'label': label, 'status': status, 'tone': tone, 'detail': detail}
+
+
+@login_required
+def project_settings(request):
+    active_model = (
+        TrainedModel.objects.select_related('training_job', 'training_job__dataset_version')
+        .filter(is_active_server_model=True)
+        .first()
+    )
+    active_model_exists = _path_exists(active_model.model_path) if active_model else False
+
+    deployed_package = (
+        AndroidModelPackage.objects.select_related('trained_model')
+        .filter(is_deployed=True)
+        .first()
+    )
+    deployed_files = {}
+    if deployed_package:
+        deployed_files = {
+            'model.tflite': _file_field_exists(deployed_package.tflite_file),
+            'labels.txt': _file_field_exists(deployed_package.labels_file),
+            'metadata.json': _file_field_exists(deployed_package.metadata_file),
+        }
+
+    object_class_count = ObjectClass.objects.count()
+    uploaded_image_count = UploadedImage.objects.count()
+    label_box_count = LabelBox.objects.count()
+    labeled_image_count = LabelBox.objects.values('image_id').distinct().count()
+    invalid_box_count = LabelBox.objects.filter(
+        Q(x_min__gte=F('x_max'))
+        | Q(y_min__gte=F('y_max'))
+        | Q(x_max__gt=F('image_width'))
+        | Q(y_max__gt=F('image_height'))
+    ).count()
+    dataset_version_count = DatasetVersion.objects.count()
+    training_job_count = TrainingJob.objects.count()
+    trained_model_count = TrainedModel.objects.count()
+    android_package_count = AndroidModelPackage.objects.count()
+    detection_log_count = DetectionLog.objects.count()
+
+    class_label_stats = (
+        LabelBox.objects.values('object_class__name', 'object_class__display_name')
+        .annotate(boxes=Count('id'), images=Count('image_id', distinct=True))
+        .order_by('object_class__sort_order', 'object_class__name')
+    )
+
+    project_data_dir = settings.PROJECT_DATA_DIR
+    docs_dir = settings.BASE_DIR / 'docs'
+
+    service = {
+        'Service name': 'theDetect',
+        'Django service setting': _display(getattr(settings, 'SERVICE_NAME', None), 'Not configured'),
+        'Django project name': 'theDetect',
+        'Service base URL': _display(getattr(settings, 'SERVICE_BASE_URL', None), 'Not configured'),
+        'Environment / DEBUG': 'DEBUG on' if settings.DEBUG else 'DEBUG off',
+        'Timezone': _display(getattr(settings, 'TIME_ZONE', None)),
+        'Database engine': _display(settings.DATABASES.get('default', {}).get('ENGINE')),
+        'Project root': settings.BASE_DIR,
+        'Project data directory': project_data_dir,
+        'Docs directory': docs_dir,
+    }
+    upload_policy = {
+        'Allowed image extensions': 'jpg, jpeg, png, webp',
+        'Allowed ZIP upload': 'Supported',
+        'Max upload size': _format_bytes(getattr(settings, 'MDETECT_MAX_UPLOAD_SIZE', None)),
+        'Image validation': 'Pillow validation and extension checks',
+        'Image max long edge for Android upload': f'{getattr(settings, "MDETECT_MAX_IMAGE_LONG_EDGE", 1280)}px',
+    }
+    dataset_defaults = {
+        'Default train ratio': '80',
+        'Default val ratio': '10',
+        'Default test ratio': '10',
+        'Default random seed': '42',
+        'Include only labeled images default': 'true',
+        'Exclude invalid boxes default': 'true',
+        'Build type': 'original',
+    }
+    augmentation_defaults = {
+        'Target images per class': '500',
+        'Max augmentations per source image': '100',
+        'Color-safe augmentation': 'true',
+        'Implemented augmentation methods': 'brightness, contrast, blur, noise, shift, scale',
+        'Disabled / intentionally excluded methods': 'hue shift, saturation shift, rotation, perspective',
+        'Overfitting warning': 'class별 원본 5장 -> 500장은 smoke/trial 용도이며 overfitting 위험이 큼',
+    }
+    training_defaults = {
+        'Base model default': 'yolo11n.pt with yolov8n.pt fallback',
+        'Image size': '640',
+        'Epochs': '50',
+        'Batch size': '16',
+        'Device': 'auto / configured per job',
+        'Patience': '20',
+        'Workers': 'auto',
+        'Training runner': 'background thread / subprocess',
+    }
+    android = {
+        'Debug base URL': _android_build_value('DEFAULT_SERVER_URL', 'http://10.0.2.2:8000'),
+        'Release base URL': _android_build_value('DEFAULT_SERVER_URL', 'https://detect.thesysm.com'),
+        'Auth method': 'JWT',
+        'Default MVP username': _android_build_value('DEFAULT_USERNAME', 'mdetect_smoke'),
+        'Server Mode endpoint': '/api/detect/server/',
+        'Model Update endpoint': '/api/models/android/latest/',
+        'Detection History endpoint': '/api/detection-logs/',
+        'On-device mode status': 'implemented first-pass YOLO TFLite decoder; shape-specific verification required',
+    }
+    data_summary = {
+        'ObjectClass count': object_class_count,
+        'UploadedImage count': uploaded_image_count,
+        'LabelBox count': label_box_count,
+        'DatasetVersion count': dataset_version_count,
+        'TrainingJob count': training_job_count,
+        'TrainedModel count': trained_model_count,
+        'AndroidModelPackage count': android_package_count,
+        'DetectionLog count': detection_log_count,
+    }
+    deployed_files_ok = bool(deployed_files) and all(deployed_files.values())
+    system_checks = [
+        _check_item('Object classes exist', object_class_count > 0, f'{object_class_count} classes'),
+        _check_item('At least one labeled image exists', labeled_image_count > 0, f'{labeled_image_count} labeled images', warning=True),
+        _check_item('Invalid boxes count', invalid_box_count == 0, f'{invalid_box_count} invalid boxes', warning=True),
+        _check_item('Active server model exists', bool(active_model), active_model.name if active_model else 'No active server model', warning=True),
+        _check_item('Active server model file exists', bool(active_model and active_model_exists), active_model.model_path if active_model else '-', warning=True),
+        _check_item('Deployed Android package exists', bool(deployed_package), deployed_package.model_version if deployed_package else 'No deployed Android model package', warning=True),
+        _check_item('Deployed package files exist', deployed_files_ok, ', '.join(f'{name}: {"yes" if exists else "no"}' for name, exists in deployed_files.items()) if deployed_files else '-', warning=True),
+        _check_item('PROJECT_DATA_DIR exists', project_data_dir.exists(), str(project_data_dir), warning=True),
+    ]
+
+    return render(request, 'core/project_settings.html', {
+        'service_name': settings.SERVICE_NAME,
+        'service': service,
+        'upload_policy': upload_policy,
+        'dataset_defaults': dataset_defaults,
+        'augmentation_defaults': augmentation_defaults,
+        'training_defaults': training_defaults,
+        'active_model': active_model,
+        'active_model_file_exists': active_model_exists,
+        'active_model_usable_pt': bool(active_model and active_model_exists and Path(active_model.model_path).suffix == '.pt'),
+        'deployed_package': deployed_package,
+        'deployed_files': deployed_files,
+        'android': android,
+        'data_summary': data_summary,
+        'class_label_stats': class_label_stats,
+        'system_checks': system_checks,
+    })
 
 
 @login_required

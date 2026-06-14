@@ -1,18 +1,28 @@
 # MDetect Next Steps
 
 ## Priority 1
+- Run the Step 23 Android auth real-device scenarios A-D and record screenshots/results.
+- Approve new Android signup users in Django Admin before first login testing.
+- Run `docs/android_auth_manual_test_guide.md` on a physical phone and confirm session restore within the 7-day refresh window.
+- Use `/project-settings/` as the operational overview before running training, deployment, or Android validation.
 - Run the documented physical-phone Server Mode checklist against the active Step 10 YOLO model.
 - Record one phone-originated `DetectionLog` with `model_version=step10_yolov8n_smoke_model`.
 - Replace the Step 10 pretrained YOLOv8n smoke model with a project-trained `class_01/class_02/other` model when enough labeled data exists.
-- Validate exported TFLite output shape and complete Android YOLO post-processing.
+- Run the Step 20 On-device model validation guide on a real phone and capture `MDetectOnDevice` tensor shape/layout logs.
+- Harden Android YOLO post-processing only after the real exported TFLite output shape is captured.
 - Add inference timeout/rate limiting around `/api/detect/server/`.
 
 ## Priority 2
+- Run Step 25 logout on a physical phone and confirm server revoke plus local clear behavior.
+- Harden Android token storage with Keystore-backed encryption if the app moves beyond internal testing.
 - Add robust DetectionLog sync from Android On-device Mode.
+- Add JVM tests for On-device letterbox math, bbox restore, output shape detection, and NMS.
 - Add detection history pagination and filters.
 - Add training/export job cancellation and better progress reporting.
 
 ## Priority 3
+- Harden Android token storage with Keystore-backed encryption if the app moves beyond internal testing.
+- Decide which Project Settings values should become DB-backed editable settings in a later migration-backed step.
 - Move long-running training/export work to Celery or another durable worker.
 - Add production deployment hardening for secrets, static/media, logs, and workers.
 - Add CI checks for Django tests and Android debug build.
@@ -26,7 +36,7 @@
 6. Run a new TrainingJob.
 7. Validate in Server Mode.
 8. After validation succeeds, run Android Model Export/Deployment.
-9. Validate On-device Mode after YOLO TFLite decoding is implemented.
+9. Validate On-device Mode on a real phone with the downloaded TFLite package and compare results with Server Mode.
 ## Augmented Dataset Build Next Steps
 
 1. Add more real source images before relying on 500-image augmented datasets.

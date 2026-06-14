@@ -1,7 +1,7 @@
 # Codex Prompt 07 - Integration Test
 
 ## 목표
-MDetect 서버와 Android 앱의 통합 테스트를 수행한다.
+theDetect 서버와 Android 앱의 통합 테스트를 수행한다.
 
 ## 서버 테스트
 - check/migrate

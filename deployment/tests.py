@@ -1,6 +1,8 @@
 import json
 import tempfile
+from types import SimpleNamespace
 from pathlib import Path
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
@@ -9,7 +11,7 @@ from datasets.models import DatasetVersion
 from models_registry.models import TrainedModel
 from training.models import TrainingJob
 
-from .exporter import create_fake_completed_package_files, metadata_for_package, write_labels_and_metadata
+from .exporter import create_fake_completed_package_files, metadata_for_package, run_export_package, write_labels_and_metadata, yolo_executable
 from .models import AndroidModelPackage
 
 
@@ -107,3 +109,23 @@ class AndroidModelPackageTests(TestCase):
         response = self.client.get(f'/models/android/packages/{package.id}/')
 
         self.assertEqual(response.status_code, 200)
+
+    def test_yolo_executable_prefers_configured_export_environment(self):
+        bin_dir = Path(tempfile.mkdtemp()) / 'bin'
+        bin_dir.mkdir()
+        yolo_path = bin_dir / 'yolo'
+        yolo_path.write_text('#!/bin/sh\n', encoding='utf-8')
+
+        with override_settings(MDETECT_EXPORT_YOLO_BIN=str(yolo_path)):
+            self.assertEqual(yolo_executable(), str(yolo_path))
+
+    def test_failed_export_deletes_package_record(self):
+        package = self.create_package('failed_export_version')
+
+        with (
+            patch('deployment.exporter.yolo_executable', return_value='/tmp/fake-yolo'),
+            patch('deployment.exporter.subprocess.run', return_value=SimpleNamespace(returncode=1)),
+        ):
+            run_export_package(package.id)
+
+        self.assertFalse(AndroidModelPackage.objects.filter(model_version='failed_export_version').exists())

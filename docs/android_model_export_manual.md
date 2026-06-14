@@ -1,5 +1,32 @@
 # MDetect Android Model Export Manual
 
+## Export Python Environment
+The Django server can keep running in the `dj5` environment, but TFLite export should use the Python 3.11 export environment:
+
+```text
+/home/cskang/miniconda3/envs/mdetect-export/bin/yolo
+```
+
+The server setting is:
+
+```text
+MDETECT_EXPORT_YOLO_BIN=/home/cskang/miniconda3/envs/mdetect-export/bin/yolo
+```
+
+Check it from the project root:
+
+```bash
+python manage.py shell -c "from deployment.exporter import yolo_executable; print(yolo_executable())"
+```
+
+Expected:
+
+```text
+/home/cskang/miniconda3/envs/mdetect-export/bin/yolo
+```
+
+This avoids the Python 3.13 `dj5` TensorFlow wheel issue during `format=tflite` export.
+
 ## Export Package
 1. Train a YOLO model and confirm a `TrainedModel` exists in Model Registry.
 2. Open `/models/android/export/`.

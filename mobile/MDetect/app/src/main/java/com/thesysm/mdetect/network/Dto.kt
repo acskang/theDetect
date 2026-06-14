@@ -4,7 +4,51 @@ import com.google.gson.annotations.SerializedName
 
 data class LoginRequest(val username: String, val password: String)
 data class RefreshRequest(val refresh: String)
+data class SignupRequest(
+    val username: String,
+    @SerializedName("phone_number") val phoneNumber: String,
+    val password: String,
+    @SerializedName("confirm_password") val confirmPassword: String
+)
+data class SessionRefreshRequest(
+    val refresh: String,
+    @SerializedName("device_token") val deviceToken: String
+)
+data class LogoutRequest(
+    val refresh: String,
+    @SerializedName("device_token") val deviceToken: String
+)
 data class TokenResponse(val access: String, val refresh: String? = null)
+data class AuthUserDto(
+    val id: Long,
+    val username: String,
+    @SerializedName("phone_number") val phoneNumber: String,
+    @SerializedName("approval_status") val approvalStatus: String
+)
+data class AuthResponse(
+    val access: String,
+    val refresh: String,
+    val user: AuthUserDto,
+    @SerializedName("device_token") val deviceToken: String? = null,
+    val message: String? = null
+)
+data class SignupResponse(
+    val registered: Boolean,
+    @SerializedName("approval_status") val approvalStatus: String? = null,
+    val message: String? = null
+)
+data class SessionRefreshResponse(
+    val connected: Boolean,
+    val access: String? = null,
+    val refresh: String? = null,
+    val user: AuthUserDto? = null,
+    val message: String? = null,
+    val reason: String? = null
+)
+data class LogoutResponse(
+    @SerializedName("logged_out") val loggedOut: Boolean,
+    val message: String? = null
+)
 data class HealthResponse(val status: String, val service: String)
 
 data class LatestModelResponse(

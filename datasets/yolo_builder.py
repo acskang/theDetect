@@ -194,7 +194,64 @@ def safe_augmented_stem(class_name, image, aug_index):
     return f'{class_name}_{source_stem}_aug{aug_index:04d}'
 
 
-def build_augmented_dataset_version(form, user=None):
+def prepare_augmented_dataset_version(form, user=None):
+    cleaned = form.cleaned_data
+    include_only_labeled = cleaned.get('include_only_labeled_images', True)
+    exclude_invalid = cleaned.get('exclude_invalid_boxes', True)
+    target_per_class = cleaned.get('target_images_per_class') or 500
+    max_per_source = cleaned.get('max_augmentations_per_source_image') or 0
+    color_safe = cleaned.get('color_safe_augmentation', True)
+    mapping = class_mapping()
+    queryset = UploadedImage.objects.prefetch_related('label_boxes__object_class').filter(label_boxes__isnull=False).distinct()
+    if include_only_labeled:
+        queryset = queryset.filter(status=UploadedImage.Status.LABELED)
+    if not queryset.exists():
+        raise ValueError('No labeled images are available for dataset build.')
+
+    safe_name = slugify(cleaned['name']) or cleaned['name'].replace(' ', '_')
+    output_dir = Path(settings.PROJECT_DATA_DIR) / 'datasets' / safe_name
+    if output_dir.exists():
+        raise ValueError(f'Dataset output already exists: {output_dir}')
+    warnings = dataset_warnings(
+        include_only_labeled,
+        {
+            'use_augmentation': True,
+            'target_images_per_class': target_per_class,
+        },
+    )
+    return DatasetVersion.objects.create(
+        name=cleaned['name'],
+        description=cleaned.get('description', ''),
+        train_ratio=cleaned['train_ratio'],
+        val_ratio=cleaned['val_ratio'],
+        test_ratio=cleaned['test_ratio'],
+        random_seed=cleaned['random_seed'],
+        class_summary_json={'mapping': mapping, 'warnings': warnings},
+        build_config_json={
+            'build_type': 'augmented',
+            'include_only_labeled_images': include_only_labeled,
+            'exclude_invalid_boxes': exclude_invalid,
+            'build_memo': cleaned.get('build_memo', ''),
+            'use_augmentation': True,
+            'target_images_per_class': target_per_class,
+            'max_augmentations_per_source_image': max_per_source,
+            'color_safe_augmentation': color_safe,
+            'augmentation_methods': implemented_augmentation_names(),
+            'implemented_augmentations': implemented_augmentation_names(),
+            'deferred_augmentations': deferred_augmentation_names(),
+            'train_ratio': cleaned['train_ratio'],
+            'val_ratio': cleaned['val_ratio'],
+            'test_ratio': cleaned['test_ratio'],
+            'random_seed': cleaned['random_seed'],
+            'background_build': True,
+        },
+        output_path=str(output_dir),
+        status=DatasetVersion.Status.PENDING,
+        created_by=user if getattr(user, 'is_authenticated', False) else None,
+    )
+
+
+def build_augmented_dataset_version(form, user=None, dataset=None):
     cleaned = form.cleaned_data
     include_only_labeled = cleaned.get('include_only_labeled_images', True)
     exclude_invalid = cleaned.get('exclude_invalid_boxes', True)
@@ -217,7 +274,7 @@ def build_augmented_dataset_version(form, user=None):
         cleaned['random_seed'],
     )
     safe_name = slugify(cleaned['name']) or cleaned['name'].replace(' ', '_')
-    output_dir = Path(settings.PROJECT_DATA_DIR) / 'datasets' / safe_name
+    output_dir = Path(dataset.output_path) if dataset is not None else Path(settings.PROJECT_DATA_DIR) / 'datasets' / safe_name
     if output_dir.exists():
         raise ValueError(f'Dataset output already exists: {output_dir}')
     for split in ('train', 'val', 'test'):
@@ -252,36 +309,43 @@ def build_augmented_dataset_version(form, user=None):
     rng = random.Random(cleaned['random_seed'])
 
     with transaction.atomic():
-        dataset = DatasetVersion.objects.create(
-            name=cleaned['name'],
-            description=cleaned.get('description', ''),
-            train_ratio=cleaned['train_ratio'],
-            val_ratio=cleaned['val_ratio'],
-            test_ratio=cleaned['test_ratio'],
-            random_seed=cleaned['random_seed'],
-            class_summary_json={'mapping': mapping, 'warnings': warnings},
-            build_config_json={
-                'build_type': 'augmented',
-                'include_only_labeled_images': include_only_labeled,
-                'exclude_invalid_boxes': exclude_invalid,
-                'build_memo': cleaned.get('build_memo', ''),
-                'use_augmentation': True,
-                'target_images_per_class': target_per_class,
-                'max_augmentations_per_source_image': max_per_source,
-                'color_safe_augmentation': color_safe,
-                'augmentation_methods': implemented_augmentation_names(),
-                'implemented_augmentations': implemented_augmentation_names(),
-                'deferred_augmentations': deferred_augmentation_names(),
-                'train_ratio': cleaned['train_ratio'],
-                'val_ratio': cleaned['val_ratio'],
-                'test_ratio': cleaned['test_ratio'],
-                'random_seed': cleaned['random_seed'],
+        if dataset is None:
+            dataset = DatasetVersion.objects.create(
+                name=cleaned['name'],
+                description=cleaned.get('description', ''),
+                train_ratio=cleaned['train_ratio'],
+                val_ratio=cleaned['val_ratio'],
+                test_ratio=cleaned['test_ratio'],
+                random_seed=cleaned['random_seed'],
+                class_summary_json={'mapping': mapping, 'warnings': warnings},
+                build_config_json={
+                    'build_type': 'augmented',
+                    'include_only_labeled_images': include_only_labeled,
+                    'exclude_invalid_boxes': exclude_invalid,
+                    'build_memo': cleaned.get('build_memo', ''),
+                    'use_augmentation': True,
+                    'target_images_per_class': target_per_class,
+                    'max_augmentations_per_source_image': max_per_source,
+                    'color_safe_augmentation': color_safe,
+                    'augmentation_methods': implemented_augmentation_names(),
+                    'implemented_augmentations': implemented_augmentation_names(),
+                    'deferred_augmentations': deferred_augmentation_names(),
+                    'train_ratio': cleaned['train_ratio'],
+                    'val_ratio': cleaned['val_ratio'],
+                    'test_ratio': cleaned['test_ratio'],
+                    'random_seed': cleaned['random_seed'],
+                    'splits': {name: [image.id for image in images_for_split] for name, images_for_split in splits.items()},
+                },
+                output_path=str(output_dir),
+                status=DatasetVersion.Status.PENDING,
+                created_by=user if getattr(user, 'is_authenticated', False) else None,
+            )
+        else:
+            dataset.build_config_json = {
+                **dataset.build_config_json,
                 'splits': {name: [image.id for image in images_for_split] for name, images_for_split in splits.items()},
-            },
-            output_path=str(output_dir),
-            status=DatasetVersion.Status.PENDING,
-            created_by=user if getattr(user, 'is_authenticated', False) else None,
-        )
+            }
+            dataset.save(update_fields=['build_config_json'])
 
         try:
             for split, split_images_for_build in splits.items():

@@ -1,8 +1,8 @@
-# MDetect Color/Product Class Training Design
+# theDetect Color/Product Class Training Design
 
 ## 1. Purpose
 
-This document defines the labeling and training policy for detecting visually similar objects as separate classes in MDetect when the objects differ by color or product type.
+This document defines the labeling and training policy for detecting visually similar objects as separate classes in theDetect when the objects differ by color or product type.
 
 Target classes:
 
@@ -64,7 +64,7 @@ Therefore, two kinds of separation are feasible:
 
 ## 4. Operating Principles That Do Not Affect Existing Implementation
 
-This color/product class separation policy is a data operations policy used on top of the existing MDetect features.
+This color/product class separation policy is a data operations policy used on top of the existing theDetect features.
 
 To avoid affecting existing functionality, follow these principles:
 
@@ -130,7 +130,7 @@ Capture conditions:
 
 ## 7. Labeling Policy
 
-When labeling in the MDetect Labeling Workspace:
+When labeling in theDetect Labeling Workspace:
 
 - Draw the Bounding Box around the whole object.
 - Do not draw boxes around only logos, text, or color patches.
@@ -230,7 +230,7 @@ Real-device camera testing returns model_available=true and saves DetectionLog r
 ## 12. Current Implementation State and Notes
 
 ```text
-MDetect currently implements real YOLO inference in Server Mode.
+theDetect currently implements real YOLO inference in Server Mode.
 On-device Mode has TFLite model loading and fallback structure, but YOLO TFLite output decoding is not complete yet.
 Therefore, validate new class models in Server Mode first.
 After On-device decoding is completed, validate app-local inference.

@@ -1,6 +1,6 @@
-# MDetect Docs
+# theDetect Docs
 
-MDetect 모바일 실시간 객체탐지 서비스 설계서와 Codex 단계별 구현 프롬프트입니다.
+theDetect 모바일 실시간 객체탐지 서비스 설계서와 Codex 단계별 구현 프롬프트입니다.
 
 ## 설계서
 - 01_overview.md
@@ -10,6 +10,9 @@ MDetect 모바일 실시간 객체탐지 서비스 설계서와 Codex 단계별 
 - 05_api_spec.md
 - 06_ui_design.md
 - 07_codex_prompt.md
+- android_ondevice_yolo_design.md
+- android_ondevice_yolo_result.md
+- android_ondevice_model_validation_guide.md
 
 ## Codex 단계별 프롬프트
 - codex_prompts/01_project_setup_prompt.md

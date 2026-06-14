@@ -9,8 +9,9 @@ from django.views.decorators.http import require_POST
 
 from .forms import AugmentedDatasetBuildForm, DatasetBuildForm, ImageUploadForm, ObjectClassForm
 from .models import DatasetVersion, ObjectClass, UploadedImage
+from .runner import start_augmented_dataset_build
 from .uploading import handle_multi_upload, handle_zip_upload
-from .yolo_builder import build_dataset_version, dataset_warnings, source_image_counts_by_class
+from .yolo_builder import build_dataset_version, dataset_warnings, prepare_augmented_dataset_version, source_image_counts_by_class
 
 
 def object_class_list(request):
@@ -189,8 +190,10 @@ def augmented_dataset_build(request):
         if form.is_valid():
             target = form.cleaned_data.get('target_images_per_class') or 500
             try:
-                dataset_version = build_dataset_version(form, user=request.user, use_augmentation=True)
-                messages.success(request, f'Augmented DatasetVersion built: {dataset_version.name}')
+                dataset_version = prepare_augmented_dataset_version(form, user=request.user)
+                start_augmented_dataset_build(dataset_version)
+                messages.success(request, f'Augmented DatasetVersion build started: {dataset_version.name}')
+                messages.info(request, 'The build is running in the background. This page refreshes while a build is pending.')
                 for warning in dataset_version.class_summary_json.get('warnings', [])[:8]:
                     messages.warning(request, warning)
                 return redirect('datasets:dataset_version_list')
@@ -218,4 +221,7 @@ def augmented_dataset_build(request):
 @login_required
 def dataset_version_list(request):
     versions = DatasetVersion.objects.select_related('created_by')[:100]
-    return render(request, 'datasets/dataset_version_list.html', {'versions': versions})
+    return render(request, 'datasets/dataset_version_list.html', {
+        'versions': versions,
+        'has_active_builds': any(version.status == DatasetVersion.Status.PENDING for version in versions),
+    })

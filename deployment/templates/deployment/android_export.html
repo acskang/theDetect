@@ -1,26 +1,78 @@
 {% extends "base.html" %}
 
-{% block title %}Android Model Export - MDetect{% endblock %}
+{% block title %}Android Model Export - theDetect{% endblock %}
 {% block page_title %}Android Model Export{% endblock %}
 
+{% block head_extra %}
+  {% if has_active_packages %}<meta http-equiv="refresh" content="5">{% endif %}
+{% endblock %}
+
 {% block content %}
-  <div class="grid gap-4 xl:grid-cols-[420px_minmax(0,1fr)]">
+  <div class="grid gap-4 xl:grid-cols-[minmax(560px,680px)_minmax(0,1fr)]">
+    {% if has_active_packages %}
+      <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 xl:col-span-2">
+        <div class="flex items-center gap-3">
+          <span class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-blue-300 border-t-blue-700"></span>
+          <span>Android model export is running in the background. This page refreshes every 5 seconds.</span>
+        </div>
+        <div class="progress-indeterminate mt-3" role="progressbar" aria-label="Android model export in progress"></div>
+      </div>
+    {% endif %}
     <form method="post" class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
       {% csrf_token %}
       <h2 class="text-base font-semibold text-slate-950">Create Android package</h2>
+      <p class="mt-1 text-sm text-slate-500">Export a completed TrainedModel to model.tflite, labels.txt, and metadata.json for Android Model Update.</p>
       {% if form.non_field_errors %}
         <div class="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{{ form.non_field_errors }}</div>
       {% endif %}
-      <div class="mt-4 grid gap-3">
-        {% for field in form %}
+      <div class="mt-5 grid gap-4">
+        <div class="grid gap-2 md:grid-cols-[160px_minmax(0,1fr)] md:items-start">
+          <label for="{{ form.trained_model.id_for_label }}" class="pt-2 text-sm font-medium text-slate-700">{{ form.trained_model.label }}</label>
+          <div>
+            {{ form.trained_model }}
+            {% if form.trained_model.errors %}<div class="mt-1 text-sm text-red-700">{{ form.trained_model.errors }}</div>{% endif %}
+          </div>
+        </div>
+
+        <div class="grid gap-2 md:grid-cols-[160px_minmax(0,1fr)] md:items-start">
+          <label for="{{ form.model_version.id_for_label }}" class="pt-2 text-sm font-medium text-slate-700">{{ form.model_version.label }}</label>
+          <div>
+            {{ form.model_version }}
+            {% if form.model_version.help_text %}<p class="mt-1 text-xs text-slate-500">{{ form.model_version.help_text }}</p>{% endif %}
+            {% if form.model_version.errors %}<div class="mt-1 text-sm text-red-700">{{ form.model_version.errors }}</div>{% endif %}
+          </div>
+        </div>
+
+        <div class="grid gap-3 md:grid-cols-3">
           <label class="block">
-            <span class="text-sm font-medium text-slate-700">{{ field.label }}</span>
-            {{ field }}
-            {% if field.errors %}<span class="mt-1 block text-sm text-red-700">{{ field.errors }}</span>{% endif %}
+            <span class="text-sm font-medium text-slate-700">{{ form.input_size.label }}</span>
+            {{ form.input_size }}
+            {% if form.input_size.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.input_size.errors }}</span>{% endif %}
           </label>
-        {% endfor %}
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700">{{ form.confidence_threshold.label }}</span>
+            {{ form.confidence_threshold }}
+            {% if form.confidence_threshold.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.confidence_threshold.errors }}</span>{% endif %}
+          </label>
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700">{{ form.iou_threshold.label }}</span>
+            {{ form.iou_threshold }}
+            {% if form.iou_threshold.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.iou_threshold.errors }}</span>{% endif %}
+          </label>
+        </div>
+
+        <div class="grid gap-2 md:grid-cols-[160px_minmax(0,1fr)] md:items-start">
+          <label for="{{ form.export_memo.id_for_label }}" class="pt-2 text-sm font-medium text-slate-700">{{ form.export_memo.label }}</label>
+          <div>
+            {{ form.export_memo }}
+            {% if form.export_memo.help_text %}<p class="mt-1 text-xs text-slate-500">{{ form.export_memo.help_text }}</p>{% endif %}
+            {% if form.export_memo.errors %}<div class="mt-1 text-sm text-red-700">{{ form.export_memo.errors }}</div>{% endif %}
+          </div>
+        </div>
       </div>
-      <button type="submit" class="mt-5 rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white">Start export</button>
+      <div class="mt-6 border-t border-slate-200 pt-5 md:pl-40">
+        <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Start export</button>
+      </div>
     </form>
 
     <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -32,7 +84,18 @@
         {% for package in packages %}
           <a href="{% url 'deployment:package_detail' package.id %}" class="block py-3 text-sm">
             <span class="font-medium text-slate-900">{{ package.model_version }}</span>
-            <span class="ml-2 text-slate-500">{{ package.get_status_display }}</span>
+            {% if package.status == 'completed' %}
+              <span class="ml-2 inline-flex rounded-full bg-green-50 px-2 py-1 text-xs font-semibold text-green-700">Completed</span>
+            {% elif package.status == 'failed' %}
+              <span class="ml-2 inline-flex rounded-full bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">Failed</span>
+            {% elif package.status == 'running' or package.status == 'pending' %}
+              <span class="ml-2 inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">
+                <span class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-blue-300 border-t-blue-700"></span>
+                {{ package.get_status_display }}
+              </span>
+            {% else %}
+              <span class="ml-2 inline-flex rounded-full bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700">{{ package.get_status_display }}</span>
+            {% endif %}
           </a>
         {% empty %}
           <p class="py-6 text-sm text-slate-500">No Android model packages yet.</p>

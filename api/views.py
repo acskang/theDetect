@@ -1,14 +1,18 @@
 import time
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.http import FileResponse
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
+from accounts.models import AccountProfile
 from detection.models import DetectionLog
 from detection.services.yolo_inference import (
     InferenceError,
@@ -18,7 +22,7 @@ from detection.services.yolo_inference import (
 )
 from deployment.models import AndroidModelPackage
 from models_registry.models import TrainedModel
-from .serializers import PhoneOrUsernameTokenObtainPairSerializer
+from .serializers import SignupSerializer, auth_user_payload, PhoneOrUsernameTokenObtainPairSerializer
 
 
 class PhoneOrUsernameTokenObtainPairView(TokenObtainPairView):
@@ -29,6 +33,129 @@ class PhoneOrUsernameTokenObtainPairView(TokenObtainPairView):
 @permission_classes([AllowAny])
 def health(request):
     return Response({'status': 'ok', 'service': 'MDetect'})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def signup(request):
+    serializer = SignupSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response({
+            'registered': False,
+            'message': '가입 신청 정보를 확인하세요.',
+            'errors': serializer.errors,
+        }, status=status.HTTP_400_BAD_REQUEST)
+    serializer.save()
+    return Response({
+        'registered': True,
+        'approval_status': AccountProfile.ApprovalStatus.PENDING,
+        'message': '가입 신청이 완료되었습니다. 관리자 승인 후 로그인할 수 있습니다.',
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def session_refresh(request):
+    refresh_value = request.data.get('refresh', '')
+    device_token = request.data.get('device_token', '')
+    if not refresh_value or not device_token:
+        return Response({
+            'connected': False,
+            'reason': 'missing_credentials',
+            'message': '저장된 세션 정보가 없습니다. 다시 로그인하세요.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        refresh = RefreshToken(refresh_value)
+        user_id = refresh.get('user_id')
+        user = get_user_model().objects.get(pk=user_id, is_active=True)
+        profile = user.mdetect_profile
+    except (TokenError, get_user_model().DoesNotExist, AccountProfile.DoesNotExist):
+        return Response({
+            'connected': False,
+            'reason': 'session_expired',
+            'message': '세션이 만료되었습니다. 다시 로그인하세요.',
+        }, status=status.HTTP_401_UNAUTHORIZED)
+    if profile.approval_status != AccountProfile.ApprovalStatus.APPROVED:
+        return Response({
+            'connected': False,
+            'reason': 'approval_required',
+            'message': '관리자 승인 후 로그인할 수 있습니다.',
+        }, status=status.HTTP_403_FORBIDDEN)
+    if not profile.device_token or profile.device_token != device_token:
+        return Response({
+            'connected': False,
+            'reason': 'invalid_device',
+            'message': '등록된 기기 세션이 아닙니다. 다시 로그인하세요.',
+        }, status=status.HTTP_403_FORBIDDEN)
+
+    new_refresh = RefreshToken.for_user(user)
+    profile.last_login_device_at = time_now()
+    profile.save(update_fields=['last_login_device_at', 'updated_at'])
+    return Response({
+        'connected': True,
+        'access': str(new_refresh.access_token),
+        'refresh': str(new_refresh),
+        'user': auth_user_payload(user, profile),
+        'message': f'{user.get_username()}님, 반갑습니다',
+    })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def logout(request):
+    refresh_value = request.data.get('refresh', '')
+    device_token = request.data.get('device_token', '')
+    if not refresh_value or not device_token:
+        return Response({
+            'logged_out': False,
+            'message': '로그아웃에 필요한 세션 정보가 없습니다.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        refresh = RefreshToken(refresh_value)
+        user_id = refresh.get('user_id')
+        user = get_user_model().objects.get(pk=user_id, is_active=True)
+        profile = user.mdetect_profile
+    except (TokenError, get_user_model().DoesNotExist, AccountProfile.DoesNotExist):
+        return Response({
+            'logged_out': False,
+            'message': '유효하지 않은 세션입니다.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    if not profile.device_token or profile.device_token != device_token:
+        return Response({
+            'logged_out': False,
+            'message': '등록된 기기 세션이 아닙니다.',
+        }, status=status.HTTP_403_FORBIDDEN)
+    if profile.approval_status != AccountProfile.ApprovalStatus.APPROVED:
+        return Response({
+            'logged_out': False,
+            'message': '관리자 승인 후 로그아웃할 수 있습니다.',
+        }, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        refresh.blacklist()
+    except AttributeError:
+        return Response({
+            'logged_out': False,
+            'message': 'refresh token blacklist is not enabled.',
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    except TokenError:
+        return Response({
+            'logged_out': False,
+            'message': 'refresh token을 무효화할 수 없습니다.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    profile.device_token = ''
+    profile.device_token_created_at = None
+    profile.save(update_fields=['device_token', 'device_token_created_at', 'updated_at'])
+    return Response({
+        'logged_out': True,
+        'message': '로그아웃되었습니다.',
+    })
+
+
+def time_now():
+    from django.utils import timezone
+    return timezone.now()
 
 
 @api_view(['GET'])

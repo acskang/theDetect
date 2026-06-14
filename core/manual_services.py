@@ -1,9 +1,12 @@
 from dataclasses import dataclass
+from datetime import timezone as datetime_timezone
 from html import escape
+import json
 import re
 
 from django.conf import settings
 from django.core.exceptions import SuspiciousFileOperation
+from django.utils import timezone
 from django.utils.safestring import mark_safe
 
 
@@ -29,8 +32,27 @@ class ManualSearchResult:
     excerpt: str
 
 
+@dataclass(frozen=True)
+class ManualApkRelease:
+    title: str
+    version: str
+    variant: str
+    path: object
+    download_filename: str
+    original_filename: str
+    size_bytes: int
+    size_label: str
+    created_at: object
+    timezone_label: str
+    notes: str
+
+
 def docs_root():
     return settings.BASE_DIR / 'docs'
+
+
+def android_apk_outputs_root():
+    return settings.BASE_DIR / 'mobile' / 'MDetect' / 'app' / 'build' / 'outputs' / 'apk'
 
 
 def normalize_doc_path(raw_path):
@@ -223,6 +245,73 @@ def search_documents(query, stage=None, limit=20):
         if len(results) >= limit:
             break
     return results
+
+
+def _format_file_size(size):
+    try:
+        value = float(size)
+    except (TypeError, ValueError):
+        return '-'
+    for unit in ('B', 'KB', 'MB', 'GB'):
+        if value < 1024 or unit == 'GB':
+            return f'{value:.0f} {unit}'
+        value /= 1024
+    return f'{size} B'
+
+
+def _metadata_for_apk(apk_path):
+    metadata_path = apk_path.parent / 'output-metadata.json'
+    if not metadata_path.exists():
+        return {}
+    try:
+        data = json.loads(metadata_path.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    for element in data.get('elements', []):
+        if element.get('outputFile') == apk_path.name:
+            return {
+                'version': element.get('versionName') or '',
+                'version_code': element.get('versionCode'),
+                'variant': data.get('variantName') or apk_path.parent.name,
+                'application_id': data.get('applicationId') or '',
+            }
+    return {'variant': data.get('variantName') or apk_path.parent.name}
+
+
+def latest_apk_releases(limit=1):
+    root = android_apk_outputs_root()
+    if not root.exists():
+        return []
+    releases = []
+    for apk_path in root.rglob('*.apk'):
+        if not apk_path.is_file():
+            continue
+        stat = apk_path.stat()
+        metadata = _metadata_for_apk(apk_path)
+        variant = metadata.get('variant') or apk_path.parent.name
+        version = metadata.get('version') or ''
+        version_code = metadata.get('version_code')
+        version_label = version
+        if version_code not in (None, ''):
+            version_label = f'{version or "unversioned"} ({version_code})'
+        filename_version = version.replace('.', '_') if version else 'latest'
+        modified_at = timezone.localtime(
+            timezone.datetime.fromtimestamp(stat.st_mtime, tz=datetime_timezone.utc)
+        )
+        releases.append(ManualApkRelease(
+            title='MDetect',
+            version=version_label,
+            variant=variant,
+            path=apk_path,
+            download_filename=f'mdetect-{variant}-{filename_version}.apk',
+            original_filename=apk_path.name,
+            size_bytes=stat.st_size,
+            size_label=_format_file_size(stat.st_size),
+            created_at=modified_at,
+            timezone_label=modified_at.tzname() or str(timezone.get_current_timezone()),
+            notes='Latest locally built Android APK.',
+        ))
+    return sorted(releases, key=lambda item: item.created_at, reverse=True)[:limit]
 
 
 def manual_stats():

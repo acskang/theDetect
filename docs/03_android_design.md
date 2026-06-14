@@ -1,4 +1,4 @@
-# MDetect Android 앱 설계서
+# theDetect Android 앱 설계서
 
 ## 1. 기술 스택
 

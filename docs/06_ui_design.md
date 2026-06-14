@@ -1,4 +1,4 @@
-# MDetect UI 설계서
+# theDetect UI 설계서
 
 ## 1. 서버 웹 UI
 서버 웹은 Tailwind 기반 SaaS 관리자 콘솔 스타일로 구현한다.

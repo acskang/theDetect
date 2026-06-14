@@ -16,8 +16,8 @@
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <link rel="stylesheet" href="{% static 'css/mdetect.css' %}">
+  {% block head_extra %}{% endblock %}
   <style>
     [x-cloak] { display: none !important; }
     :root {
@@ -54,6 +54,32 @@
     [data-theme="light"] .theme-icon-sun { display: none; }
     [data-theme="dark"] .theme-icon-moon { display: none; }
     [data-theme="dark"] .theme-toggle { background: #0b1220; border: 0; box-shadow: none; }
+    .progress-indeterminate {
+      position: relative;
+      height: 8px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(96, 165, 250, .18);
+    }
+    .progress-indeterminate::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 42%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #60a5fa, #2563eb, #22d3ee);
+      animation: progress-indeterminate-slide 1.25s ease-in-out infinite;
+    }
+    @keyframes progress-indeterminate-slide {
+      0% { transform: translateX(-115%); }
+      100% { transform: translateX(250%); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .progress-indeterminate::before {
+        animation: none;
+        transform: translateX(0);
+      }
+    }
     [data-theme="dark"] .bg-white,
     [data-theme="dark"] section.bg-white,
     [data-theme="dark"] form.bg-white,
@@ -136,47 +162,11 @@
     }
   </style>
 </head>
-<body
-  class="h-full"
-  x-data="{
-    dark: document.documentElement.dataset.theme === 'dark',
-    sidebarOpen: false,
-    sidebarCollapsed: localStorage.getItem('mdetect-sidebar-collapsed') === 'true',
-    showSidebar() {
-      if (window.matchMedia('(min-width: 1024px)').matches) {
-        this.sidebarCollapsed = false;
-        localStorage.setItem('mdetect-sidebar-collapsed', 'false');
-        return;
-      }
-      this.sidebarOpen = true;
-      document.body.classList.add('nav-open');
-    },
-    hideSidebar() {
-      if (window.matchMedia('(min-width: 1024px)').matches) {
-        this.sidebarCollapsed = true;
-        localStorage.setItem('mdetect-sidebar-collapsed', 'true');
-        return;
-      }
-      this.sidebarOpen = false;
-      document.body.classList.remove('nav-open');
-    },
-    toggleTheme() {
-      this.dark = !this.dark;
-      localStorage.setItem('mdetect-theme', this.dark ? 'dark' : 'light');
-      document.documentElement.dataset.theme = this.dark ? 'dark' : 'light';
-      document.documentElement.classList.toggle('dark', this.dark);
-    }
-  }"
-  x-init="
-    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-    document.documentElement.classList.toggle('dark', dark);
-  "
->
+<body class="h-full">
   <div class="app-shell min-h-full lg:flex">
     <aside
       data-navigation-sidebar
       class="app-sidebar bg-slate-950 text-slate-100 lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col"
-      :class="{ 'is-open': sidebarOpen, 'sidebar-collapsed': sidebarCollapsed }"
     >
       <div class="flex h-16 items-center justify-between border-b border-white/10 px-6">
         <a href="{% url 'core:landing' %}" class="brand-link text-lg font-semibold tracking-normal text-white">
@@ -188,7 +178,6 @@
           data-nav-close-button
           class="sidebar-hide-button inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white"
           aria-label="Hide navigation"
-          @click="hideSidebar()"
         >
           <span aria-hidden="true">☰</span>
         </button>
@@ -211,6 +200,9 @@
         <a href="{% url 'core:review_queue' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">Review Queue</a>
         <a href="{% url 'core:api_test' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">API Test</a>
         <a href="{% url 'core:manual' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">Manual</a>
+        {% if request.user.is_staff %}
+          <a href="{% url 'admin:index' %}" class="sidebar-link block rounded-md px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white">Django Admin</a>
+        {% endif %}
       </nav>
     </aside>
     <button
@@ -219,10 +211,9 @@
       class="nav-backdrop"
       aria-label="Hide navigation"
       hidden
-      @click="hideSidebar()"
     ></button>
 
-    <main data-navigation-content class="content-shell lg:pl-72" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
+    <main data-navigation-content class="content-shell lg:pl-72">
       <header class="top-header sticky top-0 z-10 border-b backdrop-blur">
         <div class="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
           <div class="flex min-w-0 items-center gap-3">
@@ -231,12 +222,14 @@
               data-nav-open-button
               class="mobile-menu-button rounded-lg border px-3 py-2 text-sm"
               aria-label="Show navigation"
-              :aria-expanded="window.matchMedia('(min-width: 1024px)').matches ? (!sidebarCollapsed).toString() : sidebarOpen.toString()"
-              @click="showSidebar()"
+              aria-expanded="false"
             >☰</button>
             <div class="min-w-0">
-            <p class="text-sm font-medium text-slate-500">{{ service_name|default:"theDetect" }}</p>
-            <h1 class="text-xl font-semibold tracking-normal text-slate-950">{% block page_title %}Dashboard{% endblock %}</h1>
+              <nav class="flex min-w-0 items-center gap-2 text-xl font-semibold tracking-normal" aria-label="Breadcrumb">
+                <a href="{% url 'core:landing' %}" class="shrink-0 text-slate-500 hover:text-blue-600">{{ service_name|default:"theDetect" }}</a>
+                <span class="shrink-0 text-slate-400" aria-hidden="true">/</span>
+                <h1 class="min-w-0 truncate text-slate-950">{% block page_title %}Dashboard{% endblock %}</h1>
+              </nav>
             </div>
           </div>
           <div class="flex items-center gap-3">
@@ -251,9 +244,9 @@
             {% endif %}
             <button
               type="button"
+              data-theme-toggle
               class="theme-toggle inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-900 shadow-sm"
               aria-label="Toggle bright and dark mode"
-              @click="toggleTheme()"
             >
               <svg class="theme-icon theme-icon-moon h-5 w-5 text-yellow-400" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M20.2 15.2A7.4 7.4 0 0 1 8.8 3.8a8.6 8.6 0 1 0 11.4 11.4Z" fill="currentColor"/>
@@ -279,6 +272,28 @@
     </main>
   </div>
   <script>
+    (function () {
+      function applyTheme(dark) {
+        localStorage.setItem('mdetect-theme', dark ? 'dark' : 'light');
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        document.documentElement.classList.toggle('dark', dark);
+      }
+
+      function currentThemeIsDark() {
+        return document.documentElement.dataset.theme === 'dark';
+      }
+
+      document.querySelectorAll('[data-theme-toggle]').forEach(function (button) {
+        if (button.dataset.themeToggleReady === 'true') {
+          return;
+        }
+        button.dataset.themeToggleReady = 'true';
+        button.addEventListener('click', function () {
+          applyTheme(!currentThemeIsDark());
+        });
+      });
+    })();
+
     (function () {
       const sidebar = document.querySelector('[data-navigation-sidebar]');
       const content = document.querySelector('[data-navigation-content]');
@@ -358,6 +373,39 @@
       desktopQuery.addEventListener('change', syncNavigation);
       syncNavigation();
     })();
+
+    (function () {
+      const tables = document.querySelectorAll('main table');
+
+      tables.forEach(function (table) {
+        const container = table.parentElement;
+        if (!container || container.dataset.horizontalScrollReady === 'true') {
+          return;
+        }
+
+        container.dataset.horizontalScrollReady = 'true';
+        container.dataset.horizontalScroll = 'true';
+        container.tabIndex = container.tabIndex >= 0 ? container.tabIndex : 0;
+        container.style.overflowX = 'auto';
+        container.style.overflowY = container.style.overflowY || 'hidden';
+        container.classList.add('outline-none', 'focus:ring-2', 'focus:ring-blue-500/30');
+        if (!container.getAttribute('aria-label')) {
+          container.setAttribute('aria-label', 'Scrollable table. Use Shift plus left or right arrow to scroll horizontally.');
+        }
+
+        container.addEventListener('keydown', function (event) {
+          if (!event.shiftKey || !['ArrowLeft', 'ArrowRight'].includes(event.key)) {
+            return;
+          }
+          event.preventDefault();
+          container.scrollBy({
+            left: event.key === 'ArrowRight' ? 180 : -180,
+            behavior: 'smooth'
+          });
+        });
+      });
+    })();
   </script>
+  {% include "core/includes/chat_widget.html" %}
 </body>
 </html>

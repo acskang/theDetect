@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Project Settings - theDetect{% endblock %}
+{% block page_title %}Project Settings{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+      <div>
+        <p class="text-sm font-medium text-blue-600">Read-only System Settings Dashboard</p>
+        <h2 class="mt-1 text-2xl font-semibold tracking-normal text-slate-950">Project Settings</h2>
+        <p class="mt-2 max-w-3xl text-sm text-slate-600">
+          Read-only overview of current theDetect system settings and runtime status.
+          현재 theDetect 서버, 데이터셋, 학습, 모델 배포, Android 연동 설정을 한눈에 확인하는 읽기 전용 화면입니다.
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-2 text-sm">
+        <a class="rounded-md border border-slate-200 px-3 py-2 text-slate-700 hover:bg-slate-50" href="{% url 'datasets:object_class_list' %}">Object Classes</a>
+        <a class="rounded-md border border-slate-200 px-3 py-2 text-slate-700 hover:bg-slate-50" href="{% url 'training:job_list' %}">Training Jobs</a>
+        <a class="rounded-md border border-slate-200 px-3 py-2 text-slate-700 hover:bg-slate-50" href="{% url 'deployment:package_list' %}">Android Packages</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid gap-6 xl:grid-cols-2">
+    {% include "core/project_settings_section.html" with title="Project / Service" items=service %}
+    {% include "core/project_settings_section.html" with title="Upload / Image Policy" items=upload_policy %}
+    {% include "core/project_settings_section.html" with title="Dataset Build Defaults" items=dataset_defaults %}
+    {% include "core/project_settings_section.html" with title="Augmented Dataset Build Defaults" items=augmentation_defaults %}
+    {% include "core/project_settings_section.html" with title="Training Defaults" items=training_defaults %}
+    {% include "core/project_settings_section.html" with title="Android App Integration" items=android %}
+  </div>
+
+  <div class="grid gap-6 xl:grid-cols-2">
+    <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h3 class="text-lg font-semibold tracking-normal text-slate-950">Active Server Model</h3>
+          <p class="mt-1 text-sm text-slate-500">Model Registry에서 Server Mode가 사용하는 현재 모델입니다.</p>
+        </div>
+        {% if active_model %}
+          {% if active_model_file_exists %}
+            <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">OK</span>
+          {% else %}
+            <span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Model file missing</span>
+          {% endif %}
+        {% else %}
+          <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">No active server model</span>
+        {% endif %}
+      </div>
+      {% if active_model %}
+        <dl class="mt-4 divide-y divide-slate-200 text-sm">
+          <div class="grid gap-2 py-3 sm:grid-cols-3"><dt class="font-medium text-slate-600">Active model name</dt><dd class="break-words text-slate-900 sm:col-span-2">{{ active_model.name }}</dd></div>
+          <div class="grid gap-2 py-3 sm:grid-cols-3"><dt class="font-medium text-slate-600">Model path</dt><dd class="break-all text-slate-900 sm:col-span-2">{{ active_model.model_path|default:"-" }}</dd></div>
+          <div class="grid gap-2 py-3 sm:grid-cols-3"><dt class="font-medium text-slate-600">Model file exists</dt><dd class="text-slate-900 sm:col-span-2">{{ active_model_file_exists|yesno:"Yes,No" }}</dd></div>
+          <div class="grid gap-2 py-3 sm:grid-cols-3"><dt class="font-medium text-slate-600">Usable .pt</dt><dd class="text-slate-900 sm:col-span-2">{{ active_model_usable_pt|yesno:"Yes,No" }}</dd></div>
+          <div class="grid gap-2 py-3 sm:grid-cols-3"><dt class="font-medium text-slate-600">Training job</dt><dd class="text-slate-900 sm:col-span-2">{{ active_model.training_job.name|default:"-" }}</dd></div>
+          <div class="grid gap-2 py-3 sm:grid-cols-3"><dt class="font-medium text-slate-600">Created at</dt><dd class="text-slate-900 sm:col-span-2">{{ active_model.created_at|date:"Y-m-d H:i:s" }}</dd></div>
+          <div class="grid gap-2 py-3 sm:grid-cols-3"><dt class="font-medium text-slate-600">Metrics summary</dt><dd class="break-words text-slate-900 sm:col-span-2">{{ active_model.metrics_json|default:"-" }}</dd></div>
+        </dl>
+      {% else %}
+        <p class="mt-4 rounded-md bg-slate-50 p-3 text-sm text-slate-600">No active server model</p>
+      {% endif %}
+    </section>
+
+    <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h3 class="text-lg font-semibold tracking-normal text-slate-950">Deployed Android Model Package</h3>
+          <p class="mt-1 text-sm text-slate-500">Android 앱 Model Update가 다운로드하는 현재 패키지입니다.</p>
+        </div>
+        {% if deployed_package %}
+          <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{{ deployed_package.status }}</span>
+        {% else %}
+          <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">No deployed package</span>
+        {% endif %}
+      </div>
+      {% if deployed_package %}
+        <dl class="mt-4 divide-y divide-slate-200 text-sm">
+          <div class="grid gap-2 py-3 sm:grid-cols-3"><dt class="font-medium text-slate-600">Model version</dt><dd class="break-words text-slate-900 sm:col-span-2">{{ deployed_package.model_version }}</dd></div>
+          <div class="grid gap-2 py-3 sm:grid-cols-3"><dt class="font-medium text-slate-600">Trained model</dt><dd class="text-slate-900 sm:col-span-2">{{ deployed_package.trained_model.name }}</dd></div>
+          <div class="grid gap-2 py-3 sm:grid-cols-3"><dt class="font-medium text-slate-600">Input size</dt><dd class="text-slate-900 sm:col-span-2">{{ deployed_package.input_size }}</dd></div>
+          <div class="grid gap-2 py-3 sm:grid-cols-3"><dt class="font-medium text-slate-600">Confidence threshold</dt><dd class="text-slate-900 sm:col-span-2">{{ deployed_package.confidence_threshold }}</dd></div>
+          <div class="grid gap-2 py-3 sm:grid-cols-3"><dt class="font-medium text-slate-600">IoU threshold</dt><dd class="text-slate-900 sm:col-span-2">{{ deployed_package.iou_threshold }}</dd></div>
+          {% for name, exists in deployed_files.items %}
+            <div class="grid gap-2 py-3 sm:grid-cols-3">
+              <dt class="font-medium text-slate-600">{{ name }} exists</dt>
+              <dd class="sm:col-span-2">
+                {% if exists %}
+                  <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Yes</span>
+                {% else %}
+                  <span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Missing</span>
+                {% endif %}
+              </dd>
+            </div>
+          {% endfor %}
+          <div class="grid gap-2 py-3 sm:grid-cols-3"><dt class="font-medium text-slate-600">Created at</dt><dd class="text-slate-900 sm:col-span-2">{{ deployed_package.created_at|date:"Y-m-d H:i:s" }}</dd></div>
+          <div class="grid gap-2 py-3 sm:grid-cols-3"><dt class="font-medium text-slate-600">Deployed at</dt><dd class="text-slate-900 sm:col-span-2">{{ deployed_package.deployed_at|date:"Y-m-d H:i:s"|default:"-" }}</dd></div>
+        </dl>
+      {% else %}
+        <p class="mt-4 rounded-md bg-slate-50 p-3 text-sm text-slate-600">No deployed Android model package</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <h3 class="text-lg font-semibold tracking-normal text-slate-950">Data Summary</h3>
+    <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {% for label, value in data_summary.items %}
+        <div class="rounded-md border border-slate-200 bg-slate-50 p-4">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ label }}</p>
+          <p class="mt-2 text-2xl font-semibold tracking-normal text-slate-950">{{ value }}</p>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="mt-5 overflow-hidden rounded-lg border border-slate-200">
+      <table class="min-w-full divide-y divide-slate-200 text-sm">
+        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <tr>
+            <th class="px-4 py-3">Class</th>
+            <th class="px-4 py-3">Boxes</th>
+            <th class="px-4 py-3">Images</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200">
+          {% for item in class_label_stats %}
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-900">{{ item.object_class__display_name|default:item.object_class__name }}</td>
+              <td class="px-4 py-3 text-slate-700">{{ item.boxes }}</td>
+              <td class="px-4 py-3 text-slate-700">{{ item.images }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="px-4 py-4 text-slate-500">No labeled boxes yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <h3 class="text-lg font-semibold tracking-normal text-slate-950">System Checks</h3>
+    <div class="mt-4 overflow-hidden rounded-lg border border-slate-200">
+      <table class="min-w-full divide-y divide-slate-200 text-sm">
+        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <tr>
+            <th class="px-4 py-3">Check</th>
+            <th class="px-4 py-3">Status</th>
+            <th class="px-4 py-3">Detail</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200">
+          {% for check in system_checks %}
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-900">{{ check.label }}</td>
+              <td class="px-4 py-3">
+                {% if check.tone == "ok" %}
+                  <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{{ check.status }}</span>
+                {% elif check.tone == "warning" %}
+                  <span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">{{ check.status }}</span>
+                {% else %}
+                  <span class="rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">{{ check.status }}</span>
+                {% endif %}
+              </td>
+              <td class="break-words px-4 py-3 text-slate-700">{{ check.detail|default:"-" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

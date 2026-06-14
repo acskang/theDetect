@@ -96,6 +96,44 @@
     </div>
   </header>
 
+  <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" aria-label="APK downloads">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <p class="text-xs font-black uppercase tracking-normal text-blue-700">App Download</p>
+        <h2 class="mt-2 text-2xl font-black tracking-normal text-slate-950">APK 배포 파일</h2>
+        <p class="mt-2 text-sm font-medium text-slate-600">Android 앱을 설치한 뒤 앱에서 회원가입을 진행할 수 있습니다.</p>
+      </div>
+      <span class="inline-flex w-fit rounded-full border border-slate-200 px-3 py-1 text-xs font-black text-slate-700">{{ manual_apk_releases|length }} files</span>
+    </div>
+
+    {% if manual_apk_releases %}
+      <div class="mt-4 grid gap-3">
+        {% for release in manual_apk_releases %}
+          <article class="flex flex-col gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h3 class="text-lg font-black text-slate-950">{{ release.title }}</h3>
+              <div class="mt-3 flex flex-wrap gap-2">
+                {% if release.version %}
+                  <span class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-black text-slate-700">{{ release.version }}</span>
+                {% endif %}
+                <span class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-black text-slate-700">{{ release.variant }}</span>
+                <span class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-black text-slate-700">{{ release.original_filename }}</span>
+                <span class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-black text-slate-700">{{ release.size_label }}</span>
+                <span class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-black text-slate-700">{{ release.created_at|date:"Y-m-d H:i:s" }} {{ release.timezone_label }}</span>
+              </div>
+              <p class="mt-3 text-sm leading-6 text-slate-600">{{ release.notes }}</p>
+            </div>
+            <a class="inline-flex items-center justify-center rounded-full bg-blue-700 px-5 py-3 text-sm font-black text-white transition hover:bg-blue-800" href="{% url 'core:manual_apk_download' %}">APK 다운로드</a>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-5 text-sm font-bold text-slate-600">
+        빌드된 APK 파일이 없습니다. `mobile/MDetect`에서 `./gradlew assembleDebug`를 실행하면 최신 debug APK가 여기에 표시됩니다.
+      </div>
+    {% endif %}
+  </section>
+
   <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Manual filters">
     <form method="get" action="{% url 'core:manual' %}" class="grid gap-3 lg:grid-cols-[1fr_1.35fr_1.35fr_auto] lg:items-end">
       <label class="grid gap-2 text-xs font-black uppercase text-slate-700" for="manual-stage">

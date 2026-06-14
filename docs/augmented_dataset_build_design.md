@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Augmented Dataset Build creates a YOLO dataset from labeled MDetect source images and LabelBox coordinates, then optionally expands the dataset to a target image count per class.
+Augmented Dataset Build creates a YOLO dataset from labeled theDetect source images and LabelBox coordinates, then optionally expands the dataset to a target image count per class.
 
 The Step 15 target classes are:
 

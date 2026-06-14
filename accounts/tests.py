@@ -1,6 +1,8 @@
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
+from django.test import override_settings
 
 from .models import AccountProfile
 
@@ -51,3 +53,28 @@ class AccountSignupTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Username or phone number')
+
+    @override_settings()
+    def test_ensure_mvp_test_user_creates_approved_profile(self):
+        import os
+        original = {
+            'MDETECT_TEST_USERNAME': os.environ.get('MDETECT_TEST_USERNAME'),
+            'MDETECT_TEST_PASSWORD': os.environ.get('MDETECT_TEST_PASSWORD'),
+            'MDETECT_TEST_PHONE': os.environ.get('MDETECT_TEST_PHONE'),
+        }
+        os.environ['MDETECT_TEST_USERNAME'] = 'mdetect_smoke_test'
+        os.environ['MDETECT_TEST_PASSWORD'] = 'StrongPass123!'
+        os.environ['MDETECT_TEST_PHONE'] = '010-0000-1111'
+        try:
+            call_command('ensure_mvp_test_user', verbosity=0)
+        finally:
+            for key, value in original.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+
+        user = get_user_model().objects.get(username='mdetect_smoke_test')
+        profile = AccountProfile.objects.get(user=user)
+        self.assertEqual(profile.phone_number, '01000001111')
+        self.assertEqual(profile.approval_status, AccountProfile.ApprovalStatus.APPROVED)

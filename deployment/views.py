@@ -30,13 +30,20 @@ def android_export(request):
             'iou_threshold': 0.45,
         })
     packages = AndroidModelPackage.objects.select_related('trained_model')[:20]
-    return render(request, 'deployment/android_export.html', {'form': form, 'packages': packages})
+    return render(request, 'deployment/android_export.html', {
+        'form': form,
+        'packages': packages,
+        'has_active_packages': any(package.status in {AndroidModelPackage.Status.PENDING, AndroidModelPackage.Status.RUNNING} for package in packages),
+    })
 
 
 @login_required
 def package_list(request):
     packages = AndroidModelPackage.objects.select_related('trained_model')[:100]
-    return render(request, 'deployment/package_list.html', {'packages': packages})
+    return render(request, 'deployment/package_list.html', {
+        'packages': packages,
+        'has_active_packages': any(package.status in {AndroidModelPackage.Status.PENDING, AndroidModelPackage.Status.RUNNING} for package in packages),
+    })
 
 
 @login_required
@@ -45,7 +52,11 @@ def package_detail(request, package_id):
     export_log_text = package.export_log
     if package.export_log and Path(package.export_log).exists():
         export_log_text = Path(package.export_log).read_text(encoding='utf-8', errors='replace')[-12000:]
-    return render(request, 'deployment/package_detail.html', {'package': package, 'export_log_text': export_log_text})
+    return render(request, 'deployment/package_detail.html', {
+        'package': package,
+        'export_log_text': export_log_text,
+        'is_active_package': package.status in {AndroidModelPackage.Status.PENDING, AndroidModelPackage.Status.RUNNING},
+    })
 
 
 @login_required

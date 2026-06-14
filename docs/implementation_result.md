@@ -1,5 +1,86 @@
 # MDetect Implementation Result
 
+## Step 24 - Android Local Logout / Token Clear
+
+Date: 2026-06-14
+
+### Summary
+- Added local Android logout through Home and Settings.
+- Added a confirmation dialog before clearing session state.
+- Clears access token, refresh token, device token, user id, username, phone number, approval status, connected state, welcome message, and legacy username/password values from DataStore.
+- Logout returns the app to the landing screen with disconnected/login-required state.
+- Documented that server-side token blacklist and device-token revoke are not part of Step 24.
+
+### Verification
+- See the Step 24 completion report for command results.
+
+### Step Boundary
+Only Android local logout/token clear was implemented. Server logout API, refresh token blacklist, device-token revoke, Keystore storage, Dataset Build, TrainingJob, Server Mode inference, Model Update, and On-device decoder changes were not performed.
+
+## Step 23 - Android Auth Real-device Test Preparation
+
+Date: 2026-06-14
+
+### Summary
+- Performed server API smoke testing for signup, pending login rejection, shell approval, approved login, app session refresh, wrong device token rejection, default JWT refresh, protected-test, and health.
+- Confirmed refresh token lifetime is 7 days.
+- Confirmed Android debug APK builds at `mobile/MDetect/app/build/outputs/apk/debug/app-debug.apk`.
+- Added real-device auth test result and expanded Android auth manual test documentation.
+- Fixed approval save handling so `approved_at` is persisted when approving by shell with `update_fields`.
+- Improved Android auth failure text to include the server response body where available.
+
+### Verification
+- `python manage.py check`: passed.
+- `python manage.py makemigrations --check`: passed.
+- `python manage.py test accounts api`: passed.
+- `python manage.py test`: passed.
+- `cd mobile/MDetect && ./gradlew assembleDebug`: passed.
+- `cd mobile/MDetect && ./gradlew testDebugUnitTest`: passed with `NO-SOURCE`.
+
+### Step Boundary
+Only auth test preparation, smoke validation, small auth-message/approval fixes, and documentation were changed. Dataset Build, TrainingJob, Server Mode inference, Model Update, and On-device decoder behavior were not changed.
+
+## Step 22 - App Signup/Login/Session Auth
+
+Date: 2026-06-14
+
+### Summary
+- Extended `AccountProfile` with approval status, admin approval metadata, device token, and last device login timestamp.
+- Added API signup at `/api/auth/signup/` with duplicate username/phone checks, password confirmation, and Django password validation.
+- Extended `/api/auth/login/` to require approved profiles and return user payload, welcome message, and server-generated `device_token`.
+- Added `/api/auth/session/refresh/` for startup restore using `refresh_token + device_token`.
+- Set SimpleJWT access token lifetime to 30 minutes and refresh token lifetime to 7 days with refresh rotation.
+- Updated Android startup to begin disconnected, restore session with refresh/device token, show Login and Sign up screens, store tokens/user/device token, and display connected/welcome state.
+- Preserved Server Mode, Model Update, Detection History, and On-device flows behind the refreshed access token.
+
+### Verification
+- `python manage.py check`: passed.
+- `python manage.py makemigrations accounts`: created `accounts.0002_accountprofile_approval_status_and_more`.
+- `python manage.py migrate`: passed.
+- `python manage.py test accounts api`: 28 tests passed.
+- `python manage.py test`: 103 tests passed.
+- `cd mobile/MDetect && ./gradlew assembleDebug`: passed.
+- `cd mobile/MDetect && ./gradlew testDebugUnitTest`: passed with `NO-SOURCE`.
+
+### Step Boundary
+Only signup/login/session restore authentication was implemented. Dataset Build, Training, Server Mode inference, Model Export, and On-device decoder logic were not changed.
+
+## Step 21 - Project Settings Read-only Overview
+
+Date: 2026-06-14
+
+### Summary
+- Replaced the Project Settings placeholder with a read-only system settings dashboard at `/project-settings/`.
+- Added overview sections for service/runtime settings, upload policy, dataset defaults, augmentation defaults, training defaults, Android integration, active server model, deployed Android package, data summary, and system checks.
+- Reads existing Django settings, DB rows, and file existence state without creating a ProjectSettings model or changing any schema.
+- Added tests for login protection, empty active/deployed model states, data summary context, and system check rendering.
+
+### Verification
+- See the Step 21 completion report for the latest command results.
+
+### Step Boundary
+Only the Project Settings read-only overview was implemented. Editable settings, DB-backed configuration, migrations, Dataset Build changes, TrainingJob changes, and Android app changes were not performed.
+
 ## Step 01 - Project Setup
 
 Date: 2026-06-11
@@ -344,3 +425,104 @@ Only Step 13 ObjectClass state inspection and documentation were performed. No D
 - Stored `build_config_json.build_type = "augmented"` for augmented builds.
 - Preserved existing DatasetVersion, LabelBox, UploadedImage, TrainingJob, Android, and Server Mode API behavior.
 - No DB schema change or migration was created.
+
+## Step 19 - Android On-device YOLO TFLite 1차 구현
+
+Date: 2026-06-14
+
+### Summary
+- Implemented first-pass Android On-device YOLO TFLite inference in `OnDeviceDetector`.
+- Added loading for downloaded `model.tflite`, `labels.txt`, and `metadata.json` from `filesDir/models/current/`.
+- Added TFLite input/output tensor shape and dtype inspection for status/logging.
+- Added Camera JPEG to Bitmap decode in the On-device ViewModel path.
+- Added letterbox resize preprocessing and RGB input buffer creation.
+- Added FLOAT32 input support and basic UINT8 input support.
+- Added raw YOLO output decoding for `[1, channels, boxes]` and `[1, boxes, channels]`.
+- Added support for both `4 + num_classes` and `5 + num_classes` output channel layouts.
+- Added confidence threshold filtering, class-wise NMS, max detection limiting, and bbox restore to original bitmap coordinates.
+- Connected On-device results to the existing `DetectionBox` state and overlay.
+- Added fallback status messages for missing models, metadata/labels issues, unsupported tensor shapes, bitmap decode failure, and inference failure.
+- Documented the On-device preprocessing/decoding design, result, real-device checklist, limitations, and next steps.
+
+### Verification
+- `cd mobile/MDetect && ./gradlew assembleDebug`: passed.
+
+### Step Boundary
+Only Android On-device TFLite preprocessing, decoding, ViewModel connection, and documentation were changed. Django server code, migrations, Dataset Build, TrainingJob, Model Export server logic, Server Mode API, Model Update download flow, and Android UI layout were not changed.
+
+## Step 20 - Android On-device Model Validation Preparation
+
+Date: 2026-06-14
+
+### Summary
+- Added local model file state reporting for Android Model Update.
+- Model Update now shows local model version, latest server model version, downloaded file presence, labels count, and local model size.
+- Added On-device debug state for model version, input tensor shape/dtype, output tensor count/shape/dtype, decoder layout, labels count, metadata input size, detections count, and last error.
+- Camera Detection status panel now shows On-device input shape, output shape, decoder layout, downloaded file state, and last error.
+- Standardized Logcat tags for validation: `MDetectOnDevice`, `MDetectModelUpdate`, and `MDetectCamera`.
+- On-device logs now include model path, metadata path, labels path, tensor info, decoder layout, inference time, detections count, and error summary.
+- Confirmed the local DB has one deployed Android package: `id=2`, `model_version=mdetect_integration_001`, `status=completed`.
+- Added On-device model validation guide with deployed package check, Model Update download check, real-device test steps, Logcat command, and shape mismatch data collection list.
+
+### Verification
+- `cd mobile/MDetect && ./gradlew assembleDebug`: passed.
+- `cd mobile/MDetect && ./gradlew testDebugUnitTest`: passed with `NO-SOURCE`.
+- `python3 manage.py check`: passed.
+- `python3 manage.py makemigrations --check`: passed with no changes detected.
+- Deployed package shell check returned `mdetect_integration_001`.
+
+### Step Boundary
+Only Android validation visibility, Logcat diagnostics, Model Update status display, and documentation were changed. Django server code, DB schema, migrations, Dataset Build, TrainingJob, Model Export server logic, Server Mode API, On-device decoder logic, GPU/NNAPI, and Android UI structure were not changed.
+
+## Step 25 - Server Logout / Refresh Revoke / Device Token Revoke
+
+Date: 2026-06-14
+
+### Summary
+- Added `POST /api/auth/logout/`.
+- Enabled SimpleJWT token blacklist support.
+- Logout blacklists the submitted refresh token and clears the matching `AccountProfile.device_token`.
+- Session restore now rejects empty or revoked device tokens.
+- Android logout now calls the server logout API before local DataStore clear.
+- Android still completes local logout when the server logout call fails.
+- Added server tests for logout success, wrong device token rejection, pending profile rejection, and refresh reuse failure.
+- Added logout/revoke documentation and manual Android test steps.
+
+### Verification
+- `python manage.py check`: passed.
+- `python manage.py makemigrations accounts`: no changes detected.
+- `python manage.py migrate`: applied SimpleJWT `token_blacklist` migrations.
+- `python manage.py test accounts api`: passed.
+- `python manage.py test`: passed.
+- `cd mobile/MDetect && ./gradlew assembleDebug`: passed.
+- `cd mobile/MDetect && ./gradlew testDebugUnitTest`: passed with `NO-SOURCE`.
+- Logout smoke confirmed login 200, logout 200, server device token cleared, session refresh after logout 401, and JWT refresh reuse 401.
+
+### Step Boundary
+Only auth logout/revoke behavior, Android logout API integration, tests, and documentation were changed. Dataset Build, TrainingJob, Server Mode inference, On-device decoder, and Android UI structure were not changed.
+
+## Step 26 - Homepage Copy Update
+
+Date: 2026-06-14
+
+### Summary
+- 홈페이지 메인 제목을 "실시간 스마트폰 객체탐지 시스템"으로 변경.
+- 설명 문구를 MDetect의 범용 모바일 객체탐지 플랫폼 목적에 맞게 수정.
+- 코드 로직, DB, API, Android 앱 변경 없음.
+
+### Step Boundary
+Only homepage copy and implementation documentation were changed.
+
+## Step 27 - Homepage Process Cards with Icons Update
+
+Date: 2026-06-14
+
+### Summary
+- 기존 Mode/Model/Console 상태 카드 3개를 제거하고 6단계 작업 절차 카드로 교체.
+- 각 카드에 의미를 전달하는 심플한 inline SVG 심볼 아이콘 추가.
+- 작업 절차: 이미지 준비 -> B-Box 라벨링 -> 데이터셋 제작 -> 학습 모델 생성 -> 스마트폰용 모델 생성 -> 스마트폰 적용.
+- 외부 이미지/패키지 추가 없음.
+- 코드 로직, DB, API, Android 앱 변경 없음.
+
+### Step Boundary
+Only homepage process-card content, inline SVG icons, and documentation were changed.

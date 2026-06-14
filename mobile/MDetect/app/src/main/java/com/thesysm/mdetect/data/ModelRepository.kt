@@ -1,7 +1,9 @@
 package com.thesysm.mdetect.data
 
 import android.content.Context
+import android.util.Log
 import com.google.gson.Gson
+import com.thesysm.mdetect.model.ModelFileState
 import com.thesysm.mdetect.model.ModelMetadata
 import com.thesysm.mdetect.network.ApiClient
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +38,21 @@ class ModelRepository(
     fun labelsFile(): File = File(currentDir, "labels.txt")
     fun metadataFile(): File = File(currentDir, "metadata.json")
 
+    fun localFileState(): ModelFileState {
+        val model = modelFile()
+        val labels = labelsFile()
+        val metadata = metadataFile()
+        return ModelFileState(
+            modelExists = model.exists(),
+            labelsExists = labels.exists(),
+            metadataExists = metadata.exists(),
+            labelsCount = if (labels.exists()) runCatching {
+                labels.readLines().count { it.trim().isNotEmpty() }
+            }.getOrDefault(0) else 0,
+            modelBytes = if (model.exists()) model.length() else 0L,
+        )
+    }
+
     suspend fun checkLatestVersion(): Result<ModelMetadata> = runCatching {
         val response = apiClient.api().latestModel()
         if (!response.isSuccessful || response.body() == null) error("Latest model unavailable: HTTP ${response.code()}")
@@ -58,11 +75,16 @@ class ModelRepository(
             val latest = latestResponse.body()!!
             if (tempDir.exists()) tempDir.deleteRecursively()
             tempDir.mkdirs()
+            Log.i(TAG, "Downloading model package version=${latest.modelVersion} temp=${tempDir.absolutePath}")
             downloadTo(latest.files.modelTflite, File(tempDir, "model.tflite"))
             downloadTo(latest.files.labels, File(tempDir, "labels.txt"))
             downloadTo(latest.files.metadata, File(tempDir, "metadata.json"))
             if (currentDir.exists()) currentDir.deleteRecursively()
             tempDir.renameTo(currentDir)
+            Log.i(
+                TAG,
+                "Model package downloaded current=${currentDir.absolutePath} model=${modelFile().exists()} labels=${labelsFile().exists()} metadata=${metadataFile().exists()}"
+            )
             currentMetadata()
         }
     }
@@ -71,11 +93,16 @@ class ModelRepository(
         val response = apiClient.api().downloadFile(url)
         if (!response.isSuccessful || response.body() == null) error("Download failed: $url HTTP ${response.code()}")
         response.body()!!.writeTo(target)
+        Log.i(TAG, "Downloaded ${target.name} bytes=${target.length()} path=${target.absolutePath}")
     }
 
     private fun ResponseBody.writeTo(target: File) {
         target.outputStream().use { output ->
             byteStream().use { input -> input.copyTo(output) }
         }
+    }
+
+    companion object {
+        private const val TAG = "MDetectModelUpdate"
     }
 }

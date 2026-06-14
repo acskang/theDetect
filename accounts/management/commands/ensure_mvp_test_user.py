@@ -25,7 +25,10 @@ class Command(BaseCommand):
         if phone_number:
             AccountProfile.objects.update_or_create(
                 user=user,
-                defaults={'phone_number': phone_number},
+                defaults={
+                    'phone_number': phone_number,
+                    'approval_status': AccountProfile.ApprovalStatus.APPROVED,
+                },
             )
 
         action = 'created' if created else 'updated'

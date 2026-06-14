@@ -1,7 +1,7 @@
 # Codex Prompt 05 - Android App
 
 ## 목표
-Kotlin + Jetpack Compose 기반 MDetect Android 앱을 구현한다.
+Kotlin + Jetpack Compose 기반 theDetect Android 앱을 구현한다.
 
 ## 화면
 Splash, Home, Camera Detection, Detection History, Model Update, Settings

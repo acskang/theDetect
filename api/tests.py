@@ -21,7 +21,11 @@ from training.models import TrainingJob
 class ApiAuthTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(username='api_user', password='secret-pass')
-        AccountProfile.objects.create(user=self.user, phone_number='01012345678')
+        AccountProfile.objects.create(
+            user=self.user,
+            phone_number='01012345678',
+            approval_status=AccountProfile.ApprovalStatus.APPROVED,
+        )
 
     def test_health_is_public(self):
         response = self.client.get('/api/health/')
@@ -37,6 +41,8 @@ class ApiAuthTests(TestCase):
         )
         self.assertEqual(login.status_code, 200)
         tokens = login.json()
+        self.assertIn('device_token', tokens)
+        self.assertEqual(tokens['user']['username'], 'api_user')
 
         refresh = self.client.post(
             '/api/auth/refresh/',
@@ -61,6 +67,202 @@ class ApiAuthTests(TestCase):
 
         self.assertEqual(login.status_code, 200)
         self.assertIn('access', login.json())
+
+    def test_signup_success_creates_pending_profile(self):
+        response = self.client.post(
+            '/api/auth/signup/',
+            {
+                'username': 'signup_user',
+                'phone_number': '010-2222-3333',
+                'password': 'StrongPass123!',
+                'confirm_password': 'StrongPass123!',
+            },
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(response.json()['registered'])
+        user = get_user_model().objects.get(username='signup_user')
+        profile = AccountProfile.objects.get(user=user)
+        self.assertEqual(profile.phone_number, '01022223333')
+        self.assertEqual(profile.approval_status, AccountProfile.ApprovalStatus.PENDING)
+
+    def test_signup_rejects_duplicate_username(self):
+        response = self.client.post(
+            '/api/auth/signup/',
+            {
+                'username': 'api_user',
+                'phone_number': '01099998888',
+                'password': 'StrongPass123!',
+                'confirm_password': 'StrongPass123!',
+            },
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()['registered'])
+        self.assertIn('username', response.json()['errors'])
+
+    def test_signup_rejects_duplicate_phone_number(self):
+        response = self.client.post(
+            '/api/auth/signup/',
+            {
+                'username': 'new_phone_user',
+                'phone_number': '010-1234-5678',
+                'password': 'StrongPass123!',
+                'confirm_password': 'StrongPass123!',
+            },
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('phone_number', response.json()['errors'])
+
+    def test_signup_rejects_password_mismatch(self):
+        response = self.client.post(
+            '/api/auth/signup/',
+            {
+                'username': 'mismatch_user',
+                'phone_number': '01055556666',
+                'password': 'StrongPass123!',
+                'confirm_password': 'WrongPass123!',
+            },
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('confirm_password', response.json()['errors'])
+
+    def test_pending_user_login_is_rejected(self):
+        user = get_user_model().objects.create_user(username='pending_user', password='StrongPass123!')
+        AccountProfile.objects.create(
+            user=user,
+            phone_number='01077778888',
+            approval_status=AccountProfile.ApprovalStatus.PENDING,
+        )
+
+        response = self.client.post(
+            '/api/auth/login/',
+            {'username': 'pending_user', 'password': 'StrongPass123!'},
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('관리자 승인', str(response.json()))
+
+    def test_session_refresh_success_rotates_tokens(self):
+        login = self.client.post(
+            '/api/auth/login/',
+            {'username': 'api_user', 'password': 'secret-pass'},
+            content_type='application/json',
+        ).json()
+
+        response = self.client.post(
+            '/api/auth/session/refresh/',
+            {'refresh': login['refresh'], 'device_token': login['device_token']},
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload['connected'])
+        self.assertIn('access', payload)
+        self.assertIn('refresh', payload)
+        self.assertEqual(payload['user']['username'], 'api_user')
+
+    def test_session_refresh_rejects_wrong_device_token(self):
+        login = self.client.post(
+            '/api/auth/login/',
+            {'username': 'api_user', 'password': 'secret-pass'},
+            content_type='application/json',
+        ).json()
+
+        response = self.client.post(
+            '/api/auth/session/refresh/',
+            {'refresh': login['refresh'], 'device_token': 'wrong-device-token'},
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(response.json()['connected'])
+
+    def test_logout_revokes_refresh_and_device_token(self):
+        login = self.client.post(
+            '/api/auth/login/',
+            {'username': 'api_user', 'password': 'secret-pass'},
+            content_type='application/json',
+        ).json()
+
+        logout = self.client.post(
+            '/api/auth/logout/',
+            {'refresh': login['refresh'], 'device_token': login['device_token']},
+            content_type='application/json',
+        )
+
+        self.assertEqual(logout.status_code, 200)
+        self.assertTrue(logout.json()['logged_out'])
+        self.user.mdetect_profile.refresh_from_db()
+        self.assertEqual(self.user.mdetect_profile.device_token, '')
+
+        session_refresh = self.client.post(
+            '/api/auth/session/refresh/',
+            {'refresh': login['refresh'], 'device_token': login['device_token']},
+            content_type='application/json',
+        )
+        self.assertNotEqual(session_refresh.status_code, 200)
+        self.assertFalse(session_refresh.json()['connected'])
+
+        jwt_refresh = self.client.post(
+            '/api/auth/refresh/',
+            {'refresh': login['refresh']},
+            content_type='application/json',
+        )
+        self.assertEqual(jwt_refresh.status_code, 401)
+
+    def test_logout_rejects_wrong_device_token(self):
+        login = self.client.post(
+            '/api/auth/login/',
+            {'username': 'api_user', 'password': 'secret-pass'},
+            content_type='application/json',
+        ).json()
+
+        response = self.client.post(
+            '/api/auth/logout/',
+            {'refresh': login['refresh'], 'device_token': 'wrong-device-token'},
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(response.json()['logged_out'])
+        self.user.mdetect_profile.refresh_from_db()
+        self.assertEqual(self.user.mdetect_profile.device_token, login['device_token'])
+
+    def test_pending_user_session_refresh_and_logout_are_rejected(self):
+        user = get_user_model().objects.create_user(username='pending_session_user', password='StrongPass123!')
+        profile = AccountProfile.objects.create(
+            user=user,
+            phone_number='01066667777',
+            approval_status=AccountProfile.ApprovalStatus.PENDING,
+        )
+        refresh = RefreshToken.for_user(user)
+        profile.device_token = 'pending-device-token'
+        profile.save(update_fields=['device_token', 'updated_at'])
+
+        session_refresh = self.client.post(
+            '/api/auth/session/refresh/',
+            {'refresh': str(refresh), 'device_token': 'pending-device-token'},
+            content_type='application/json',
+        )
+        self.assertEqual(session_refresh.status_code, 403)
+        self.assertFalse(session_refresh.json()['connected'])
+
+        logout = self.client.post(
+            '/api/auth/logout/',
+            {'refresh': str(refresh), 'device_token': 'pending-device-token'},
+            content_type='application/json',
+        )
+        self.assertEqual(logout.status_code, 403)
+        self.assertFalse(logout.json()['logged_out'])
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp(), PROJECT_DATA_DIR=tempfile.mkdtemp())

@@ -1,4 +1,4 @@
-# MDetect API 설계서
+# theDetect API 설계서
 
 ## 1. 인증
 JWT 기반 인증을 사용한다.
@@ -37,7 +37,7 @@ GET /api/health/
 
 응답:
 ```json
-{"status":"ok","service":"MDetect"}
+{"status":"ok","service":"theDetect"}
 ```
 
 ## 4. Server Mode Detection API

@@ -14,7 +14,6 @@
     })();
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <style>
     :root {
       --landing-bg: #f7f2ea;
@@ -443,11 +442,11 @@
     }
     @media (max-width: 720px) {
       .conveyor-stage {
-        grid-template-columns: 76px minmax(0, 1fr) 86px;
+        grid-template-columns: 96px minmax(0, 1fr) 86px;
         gap: 10px;
       }
       .ceiling-tools {
-        left: 86px;
+        left: 106px;
       }
       .phone-station,
       .trash-station,
@@ -455,20 +454,20 @@
         min-height: 208px;
       }
       .detect-phone {
-        left: 24px;
+        left: 42px;
         top: 12px;
         width: 26px;
         height: 118px;
         border-radius: 12px;
       }
       .phone-beam {
-        left: 51px;
+        left: 69px;
         top: 1px;
         width: min(44vw, 210px);
         height: 76px;
       }
       .phone-scan-dot {
-        left: 62px;
+        left: 80px;
         top: 37px;
       }
       .trash-bin {
@@ -485,202 +484,156 @@
     [data-theme="dark"] .theme-toggle { background: #0b1220; border: 0; box-shadow: none; }
   </style>
 </head>
-<body
-  class="min-h-full"
-  x-data="{
-    dark: document.documentElement.dataset.theme === 'dark',
-    alpineReady: false,
-    conveyorDone: false,
-    activeProduct: null,
-    carriedProduct: null,
-    gripperLeft: '50%',
-    gripperY: 0,
-    productSeed: [
-      { id: 1, type: 'bottle tall', x: 8 },
-      { id: 2, type: 'jar', x: 23 },
-      { id: 3, type: 'bottle pink', x: 38 },
-      { id: 4, type: 'tube', x: 55 },
-      { id: 5, type: 'bottle', x: 70 },
-      { id: 6, type: 'jar', x: 85 }
-    ],
-    products: [
-      { id: 1, type: 'bottle tall', x: 8, removed: false },
-      { id: 2, type: 'jar', x: 23, removed: false },
-      { id: 3, type: 'bottle pink', x: 38, removed: false },
-      { id: 4, type: 'tube', x: 55, removed: false },
-      { id: 5, type: 'bottle', x: 70, removed: false },
-      { id: 6, type: 'jar', x: 85, removed: false }
-    ],
-    toggleTheme() {
-      this.dark = !this.dark;
-      localStorage.setItem('mdetect-theme', this.dark ? 'dark' : 'light');
-      document.documentElement.dataset.theme = this.dark ? 'dark' : 'light';
-    },
-    sleep(ms) {
-      return new Promise(resolve => setTimeout(resolve, ms));
-    },
-    visibleProducts() {
-      return this.products.filter(product => !product.removed);
-    },
-    clampPercent(value) {
-      return Math.max(2, Math.min(98, value));
-    },
-    targetPercentFromClientX(clientX) {
-      const zone = this.$refs.toolZone;
-      if (!zone) {
-        return '50%';
-      }
-      const zoneRect = zone.getBoundingClientRect();
-      const percent = ((clientX - zoneRect.left) / zoneRect.width) * 100;
-      return `${this.clampPercent(percent)}%`;
-    },
-    productTargetLeft(product) {
-      const conveyor = this.$refs.conveyorWindow;
-      if (!conveyor) {
-        return `${product.x}%`;
-      }
-      const conveyorRect = conveyor.getBoundingClientRect();
-      const rowInset = 28;
-      const rowWidth = Math.max(1, conveyorRect.width - rowInset * 2);
-      const clientX = conveyorRect.left + rowInset + rowWidth * (product.x / 100);
-      return this.targetPercentFromClientX(clientX);
-    },
-    trashTargetLeft() {
-      const trashBin = this.$refs.trashBin;
-      if (!trashBin) {
-        return '92%';
-      }
-      const rect = trashBin.getBoundingClientRect();
-      return this.targetPercentFromClientX(rect.left + rect.width / 2);
-    },
-    resetProducts() {
-      this.products = this.productSeed.map(product => ({ ...product, removed: false }));
-      this.conveyorDone = false;
-      this.carriedProduct = null;
-      this.gripperLeft = '50%';
-      this.gripperY = 0;
-    },
-    async startConveyor() {
-      await this.sleep(1600);
-      while (true) {
-        while (this.visibleProducts().length > 0) {
-          await this.discardRandomProduct();
-          await this.sleep(850);
-        }
-        this.conveyorDone = true;
-        this.gripperLeft = '50%';
-        this.gripperY = 0;
-        await this.sleep(2600);
-        this.resetProducts();
-        await this.sleep(1200);
-      }
-    },
-    async discardRandomProduct() {
-      const visible = this.visibleProducts();
-      const product = visible[Math.floor(Math.random() * visible.length)];
-      this.gripperLeft = this.productTargetLeft(product);
-      this.gripperY = 0;
-      await this.sleep(1300);
-      this.gripperY = 106;
-      await this.sleep(1000);
-      product.removed = true;
-      this.carriedProduct = product;
-      this.gripperY = 0;
-      await this.sleep(1100);
-      this.gripperLeft = this.trashTargetLeft();
-      await this.sleep(2400);
-      this.gripperY = 130;
-      await this.sleep(1100);
-      this.carriedProduct = null;
-      this.gripperY = 0;
-      await this.sleep(900);
-    },
-    productClass(product) {
-      return `product ${product.type} ${product.removed ? 'is-removed' : ''}`;
-    }
-  }"
-  x-init="alpineReady = true"
->
+<body class="min-h-full">
   <main class="relative min-h-screen overflow-hidden">
     <div class="landing-top absolute inset-x-0 top-0 h-56"></div>
-    <section class="relative mx-auto grid min-h-screen max-w-7xl items-center gap-10 px-6 py-10 lg:grid-cols-[minmax(0,1.05fr)_420px] lg:px-10">
+    <section class="relative mx-auto grid min-h-screen max-w-7xl items-center gap-10 px-6 py-10 lg:grid-cols-1 lg:px-10">
       <div>
         <div class="mb-8 flex items-center justify-between gap-4">
           <div class="flex items-center gap-3">
-          <span class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#aebbaa] text-lg font-black text-[#4f5b4a]">D</span>
+          <img class="h-11 w-11 rounded-xl object-cover" src="{% static 'core/img/landing_brand_recycle_ai.png' %}" alt="theDetect">
           <div>
             <p class="text-lg font-bold tracking-normal">theDetect</p>
             <p class="landing-muted text-sm font-medium">Mobile Detection Console</p>
           </div>
           </div>
-          <button type="button" class="theme-toggle shrink-0" aria-label="Toggle bright and dark mode" @click="toggleTheme()">
-            <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M20.2 15.2A7.4 7.4 0 0 1 8.8 3.8a8.6 8.6 0 1 0 11.4 11.4Z" fill="currentColor"/>
-            </svg>
-            <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="12" r="3.5" fill="#f8fafc"/>
-              <path d="M12 2.5v2.6M12 18.9v2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M2.5 12h2.6M18.9 12h2.6M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" stroke="#f8fafc" stroke-width="1.8" stroke-linecap="round"/>
-            </svg>
-          </button>
+          <div class="flex items-center gap-3">
+            <a href="{% url 'core:manual' %}" class="rounded-xl border landing-soft px-4 py-2 text-sm font-bold landing-accent shadow-sm">Manual</a>
+            {% if request.user.is_authenticated %}
+              <a href="{% url 'core:dashboard' %}" class="hidden text-sm font-medium landing-accent sm:inline">{{ request.user.get_username }}</a>
+              <form method="post" action="{% url 'logout' %}" class="m-0">
+                {% csrf_token %}
+                <button type="submit" class="rounded-xl border landing-soft px-4 py-2 text-sm font-bold landing-accent shadow-sm">logout</button>
+              </form>
+            {% else %}
+              <a href="{% url 'login' %}?next={% url 'core:dashboard' %}" class="rounded-xl border landing-soft px-4 py-2 text-sm font-bold landing-accent shadow-sm">login</a>
+            {% endif %}
+            <button type="button" data-theme-toggle class="theme-toggle shrink-0" aria-label="Toggle bright and dark mode">
+              <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20.2 15.2A7.4 7.4 0 0 1 8.8 3.8a8.6 8.6 0 1 0 11.4 11.4Z" fill="currentColor"/>
+              </svg>
+              <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="3.5" fill="#f8fafc"/>
+                <path d="M12 2.5v2.6M12 18.9v2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M2.5 12h2.6M18.9 12h2.6M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" stroke="#f8fafc" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
         </div>
 
-        <p class="landing-soft landing-accent mb-4 inline-flex rounded-full border px-4 py-2 text-sm font-semibold shadow-sm">
+        <a
+          href="{% if request.user.is_authenticated %}{% url 'core:dashboard' %}{% else %}{% url 'login' %}?next={% url 'core:dashboard' %}{% endif %}"
+          class="landing-soft landing-accent mb-4 inline-flex rounded-full border px-4 py-2 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300/60 hover:text-blue-200 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-300/25"
+          aria-label="메인메뉴로 이동"
+        >
           Server-side YOLO inference ready
-        </p>
+        </a>
         <h1 class="max-w-3xl text-3xl font-black leading-[1.28] tracking-normal sm:text-4xl lg:text-5xl lg:leading-[1.24]">
-          카메라 객체탐지를<br class="hidden sm:block"> 서버 모델과 연결합니다
+          실시간 스마트폰 객체탐지 시스템
         </h1>
         <p class="landing-muted mt-6 max-w-2xl text-lg leading-8">
-          theDetect는 모바일 CameraX 프레임을 서버 YOLO 모델로 분석하고, 탐지 결과와 로그를 웹 콘솔에서 관리하는 실시간 객체탐지 서비스입니다.
+          theDetect는 원하는 객체를 서버에서 학습시키고, 학습된 AI 모델을 스마트폰에 적용하여 다양한 객체를 실시간으로 탐지할 수 있는 범용 모바일 객체탐지 플랫폼입니다.
         </p>
 
-        <div class="mt-8 grid gap-3 sm:grid-cols-3">
-          <div class="landing-soft rounded-2xl border p-4 shadow-sm">
-            <p class="landing-muted text-sm font-bold">Mode</p>
-            <p class="mt-2 text-xl font-black">Server / App</p>
-          </div>
-          <div class="landing-soft rounded-2xl border p-4 shadow-sm">
-            <p class="landing-muted text-sm font-bold">Model</p>
-            <p class="mt-2 text-xl font-black">YOLO Active</p>
-          </div>
-          <div class="landing-soft rounded-2xl border p-4 shadow-sm">
-            <p class="landing-muted text-sm font-bold">Console</p>
-            <p class="mt-2 text-xl font-black">Dataset / Logs</p>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <div>
-          <section class="landing-card rounded-3xl border p-6 shadow-2xl shadow-slate-900/10 backdrop-blur">
-            <div class="mb-5">
-              <h2 class="text-2xl font-black">로그인</h2>
-              <p class="landing-muted mt-1 text-sm">로그인 후 모든 theDetect 콘솔 화면을 사용할 수 있습니다.</p>
-            </div>
-            <form method="post" action="{% url 'login' %}" class="space-y-4">
-              {% csrf_token %}
-              <input type="hidden" name="next" value="{% url 'core:dashboard' %}">
-              <div>
-                <label for="id_username" class="landing-accent block text-sm font-bold">Username or phone</label>
-                <input id="id_username" name="username" autocomplete="username" required class="landing-field mt-2 w-full rounded-xl border px-4 py-3 text-sm outline-none focus:border-[#aebbaa] focus:ring-2 focus:ring-[#aebbaa]/30">
+        <div class="mt-10">
+          <p class="landing-accent text-sm font-black">작업 절차</p>
+          <p class="landing-muted mt-2 max-w-2xl text-sm leading-6">이미지 업로드부터 스마트폰 적용까지, theDetect의 객체탐지 모델 제작 흐름입니다.</p>
+          <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <article class="landing-soft rounded-2xl border p-4 shadow-sm">
+              <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-blue-300/20 bg-blue-500/10 text-blue-300">
+                <svg class="h-7 w-7 stroke-current" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3.5" y="6" width="17" height="13" rx="2.5"></rect>
+                  <path d="m7 16 3.2-3.2 2.3 2.3 1.7-1.7L18 17"></path>
+                  <path d="M12 3v7"></path>
+                  <path d="m9.5 5.5 2.5-2.5 2.5 2.5"></path>
+                </svg>
               </div>
-              <div>
-                <label for="id_password" class="landing-accent block text-sm font-bold">Password</label>
-                <input id="id_password" name="password" type="password" autocomplete="current-password" required class="landing-field mt-2 w-full rounded-xl border px-4 py-3 text-sm outline-none focus:border-[#aebbaa] focus:ring-2 focus:ring-[#aebbaa]/30">
+              <p class="landing-muted text-xs font-black">STEP 01</p>
+              <h3 class="mt-2 text-lg font-black">이미지 준비</h3>
+              <p class="landing-muted mt-2 text-sm leading-6">클래스별 객체 이미지를 업로드합니다.</p>
+            </article>
+            <article class="landing-soft rounded-2xl border p-4 shadow-sm">
+              <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-500/10 text-cyan-300">
+                <svg class="h-7 w-7 stroke-current" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="5" y="5" width="14" height="14" rx="1.5" stroke-dasharray="4 3"></rect>
+                  <circle cx="5" cy="5" r="1.3" fill="currentColor" stroke="none"></circle>
+                  <circle cx="19" cy="5" r="1.3" fill="currentColor" stroke="none"></circle>
+                  <circle cx="5" cy="19" r="1.3" fill="currentColor" stroke="none"></circle>
+                  <circle cx="19" cy="19" r="1.3" fill="currentColor" stroke="none"></circle>
+                </svg>
               </div>
-              <button type="submit" class="w-full rounded-full bg-gradient-to-r from-[#e6a1ae] to-[#aebbaa] px-5 py-3 text-sm font-black text-[#2f2a25] shadow-sm">
-                콘솔로 로그인
-              </button>
-              <p class="landing-muted text-center text-sm">
-                계정이 없나요?
-                <a href="{% url 'accounts:signup' %}?next={% url 'core:dashboard' %}" class="landing-accent font-bold underline underline-offset-4">Sign up</a>
-              </p>
-            </form>
-          </section>
+              <p class="landing-muted text-xs font-black">STEP 02</p>
+              <h3 class="mt-2 text-lg font-black">B-Box 라벨링</h3>
+              <p class="landing-muted mt-2 text-sm leading-6">객체 전체를 Bounding Box로 지정합니다.</p>
+            </article>
+            <article class="landing-soft rounded-2xl border p-4 shadow-sm">
+              <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-indigo-300/20 bg-indigo-500/10 text-indigo-300">
+                <svg class="h-7 w-7 stroke-current" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M4 7.5h6l1.6 2H20v7.7A2.3 2.3 0 0 1 17.7 19H6.3A2.3 2.3 0 0 1 4 16.7Z"></path>
+                  <path d="M6 5h5l1.4 2H19"></path>
+                  <path d="M8 13h8"></path>
+                  <path d="M8 16h5"></path>
+                </svg>
+              </div>
+              <p class="landing-muted text-xs font-black">STEP 03</p>
+              <h3 class="mt-2 text-lg font-black">데이터셋 제작</h3>
+              <p class="landing-muted mt-2 text-sm leading-6">YOLO 학습용 DatasetVersion을 생성합니다.</p>
+            </article>
+            <article class="landing-soft rounded-2xl border p-4 shadow-sm">
+              <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-violet-300/20 bg-violet-500/10 text-violet-300">
+                <svg class="h-7 w-7 stroke-current" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="7" y="7" width="10" height="10" rx="2"></rect>
+                  <path d="M9.5 3.5v3"></path>
+                  <path d="M14.5 3.5v3"></path>
+                  <path d="M9.5 17.5v3"></path>
+                  <path d="M14.5 17.5v3"></path>
+                  <path d="M3.5 9.5h3"></path>
+                  <path d="M3.5 14.5h3"></path>
+                  <path d="M17.5 9.5h3"></path>
+                  <path d="M17.5 14.5h3"></path>
+                  <path d="M10 13.5 12 10l2 3.5"></path>
+                </svg>
+              </div>
+              <p class="landing-muted text-xs font-black">STEP 04</p>
+              <h3 class="mt-2 text-lg font-black">학습 모델 생성</h3>
+              <p class="landing-muted mt-2 text-sm leading-6">서버에서 객체탐지 모델을 학습합니다.</p>
+            </article>
+            <article class="landing-soft rounded-2xl border p-4 shadow-sm">
+              <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-pink-300/20 bg-pink-500/10 text-pink-300">
+                <svg class="h-7 w-7 stroke-current" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="7" y="3" width="10" height="18" rx="2.4"></rect>
+                  <path d="M10 18h4"></path>
+                  <path d="M12 8v5"></path>
+                  <path d="m9.8 10.8 2.2 2.2 2.2-2.2"></path>
+                  <rect x="15" y="8" width="5" height="5" rx="1"></rect>
+                </svg>
+              </div>
+              <p class="landing-muted text-xs font-black">STEP 05</p>
+              <h3 class="mt-2 text-lg font-black">스마트폰용 모델 생성</h3>
+              <p class="landing-muted mt-2 text-sm leading-6">Android용 TFLite 모델로 변환합니다.</p>
+            </article>
+            <article class="landing-soft rounded-2xl border p-4 shadow-sm">
+              <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-300/20 bg-emerald-500/10 text-emerald-300">
+                <svg class="h-7 w-7 stroke-current" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="6" y="3" width="12" height="18" rx="2.4"></rect>
+                  <path d="M10 18h4"></path>
+                  <rect x="9" y="8" width="6" height="5" rx="1" stroke-dasharray="3 2"></rect>
+                  <path d="m9.4 14.6 1.7 1.7 3.7-4"></path>
+                </svg>
+              </div>
+              <p class="landing-muted text-xs font-black">STEP 06</p>
+              <h3 class="mt-2 text-lg font-black">스마트폰 적용</h3>
+              <p class="landing-muted mt-2 text-sm leading-6">앱에서 모델을 다운로드하고 탐지합니다.</p>
+            </article>
+          </div>
         </div>
       </div>
 
       <section class="animated-conveyor lg:col-span-2" aria-label="Animated cosmetic and shampoo conveyor belt">
+        <a
+          href="{% if request.user.is_authenticated %}{% url 'core:dashboard' %}{% else %}{% url 'login' %}?next={% url 'core:dashboard' %}{% endif %}"
+          class="block rounded-[2rem] outline-none focus-visible:ring-4 focus-visible:ring-[#aebbaa]/40"
+          aria-label="Dashboard로 이동"
+        >
         <div class="conveyor-stage" data-conveyor-root>
           <div class="phone-station" aria-label="Smartphone object detection camera">
             <div class="phone-beam" aria-hidden="true"></div>
@@ -689,14 +642,14 @@
               <span class="phone-lens"></span>
             </div>
           </div>
-          <div class="ceiling-tools" x-ref="toolZone" data-tool-zone aria-hidden="true">
+          <div class="ceiling-tools" data-tool-zone aria-hidden="true">
             <span class="gripper" data-gripper>
               <span class="claw left"></span>
               <span class="claw right"></span>
             </span>
             <span data-carried-slot></span>
           </div>
-          <div class="conveyor-window" x-ref="conveyorWindow" data-conveyor-window>
+          <div class="conveyor-window" data-conveyor-window>
             <div class="product-row" aria-hidden="true">
               <div class="product-layer">
                 <span class="product bottle tall" data-product data-product-type="bottle tall" style="left: 8%;"></span>
@@ -710,9 +663,10 @@
             <div class="conveyor-track" aria-hidden="true"></div>
           </div>
           <div class="trash-station" aria-label="Trash bin">
-            <div class="trash-bin" x-ref="trashBin" data-trash-bin aria-hidden="true"></div>
+            <div class="trash-bin" data-trash-bin aria-hidden="true"></div>
           </div>
         </div>
+        </a>
       </section>
     </section>
   </main>
@@ -845,5 +799,28 @@
       }
     })();
   </script>
+  <script>
+    (function () {
+      function applyTheme(dark) {
+        localStorage.setItem('mdetect-theme', dark ? 'dark' : 'light');
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      }
+
+      function currentThemeIsDark() {
+        return document.documentElement.dataset.theme === 'dark';
+      }
+
+      document.querySelectorAll('[data-theme-toggle]').forEach(function (button) {
+        if (button.dataset.themeToggleReady === 'true') {
+          return;
+        }
+        button.dataset.themeToggleReady = 'true';
+        button.addEventListener('click', function () {
+          applyTheme(!currentThemeIsDark());
+        });
+      });
+    })();
+  </script>
+  {% include "core/includes/chat_widget.html" %}
 </body>
 </html>

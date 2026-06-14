@@ -17,10 +17,19 @@ interface MDetectApi {
     suspend fun health(): Response<HealthResponse>
 
     @POST("api/auth/login/")
-    suspend fun login(@Body body: LoginRequest): Response<TokenResponse>
+    suspend fun login(@Body body: LoginRequest): Response<AuthResponse>
+
+    @POST("api/auth/signup/")
+    suspend fun signup(@Body body: SignupRequest): Response<SignupResponse>
+
+    @POST("api/auth/logout/")
+    suspend fun logout(@Body body: LogoutRequest): Response<LogoutResponse>
 
     @POST("api/auth/refresh/")
     suspend fun refresh(@Body body: RefreshRequest): Response<TokenResponse>
+
+    @POST("api/auth/session/refresh/")
+    suspend fun sessionRefresh(@Body body: SessionRefreshRequest): Response<SessionRefreshResponse>
 
     @GET("api/models/android/latest/")
     suspend fun latestModel(): Response<LatestModelResponse>

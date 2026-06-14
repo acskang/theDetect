@@ -1,0 +1,11 @@
+<section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+  <h3 class="text-lg font-semibold tracking-normal text-slate-950">{{ title }}</h3>
+  <dl class="mt-4 divide-y divide-slate-200 text-sm">
+    {% for label, value in items.items %}
+      <div class="grid gap-2 py-3 sm:grid-cols-3">
+        <dt class="font-medium text-slate-600">{{ label }}</dt>
+        <dd class="break-words text-slate-900 sm:col-span-2">{{ value|default:"-" }}</dd>
+      </div>
+    {% endfor %}
+  </dl>
+</section>

@@ -106,9 +106,71 @@ In the app:
 - Model Update should download `model.tflite`, `labels.txt`, and `metadata.json` when a package is deployed.
 - Camera Detection should show live preview after permission is granted.
 - Camera Detection in Server Mode should show detections when a valid active model exists.
+- Camera Detection in On-device Mode should show local TFLite status and bounding boxes when the downloaded model output shape is supported.
 - If no active server model exists, Camera Detection should show `No active server model is available.` without crashing.
 - After Server Mode frames are sent, confirm `/api/detection-logs/` shows a recent `server` log.
 - The Camera status panel should show `Server: ok model_available=true log_id=<id>` on successful server inference.
+
+## Deployed Android Package Check
+Before testing On-device Mode, confirm the server has a deployed Android package:
+
+```bash
+python manage.py shell -c "from deployment.models import AndroidModelPackage; print(list(AndroidModelPackage.objects.filter(is_deployed=True).values('id','model_version','status','tflite_file','labels_file','metadata_file')))"
+```
+
+If the result is empty:
+
+```text
+Model Registry
+-> Android Model Export
+-> select a TrainedModel
+-> Start export
+-> Android Model Package detail
+-> Set deployed
+-> Android app Model Update
+```
+
+If a package exists, confirm `status=completed` and the three file fields are populated.
+
+## On-device Mode Checklist
+1. Start the Django server on a LAN-visible address.
+2. Confirm a deployed Android model package with the command above.
+3. In Android Settings, set the server URL.
+4. Tap `Test` and `Login`.
+5. In the Android app, open `Model Update`.
+6. Tap latest/check and download the package.
+7. Confirm `Downloaded files` shows `model=yes labels=yes metadata=yes`.
+8. Confirm `Local model size` is greater than `0 bytes`.
+9. Open `Settings`.
+10. Set `Detection Mode` to `ON_DEVICE`.
+11. Open `Camera Detection`.
+12. Tap `START DETECTION`.
+13. Point the camera at the trained object.
+14. Confirm the status panel shows input shape, output shape, decoder layout, object count, latency, and any last error.
+15. Confirm Bounding Box Overlay, class name, confidence-derived object count, FPS, and latency when detections exist.
+
+On-device Mode does not require a network request for every frame after the model package is downloaded. Model Update and login still require the server.
+
+If the status panel reports unsupported output shape or dtype, inspect the package's TFLite tensor shape and update the decoder for that export variant.
+
+## On-device Logcat Check
+With `adb` available:
+
+```bash
+adb logcat -s MDetectOnDevice MDetectModelUpdate MDetectCamera
+```
+
+Collect these values if boxes do not appear:
+
+- model version
+- input tensor shape and dtype
+- output tensor count
+- every output tensor shape and dtype
+- labels count
+- metadata input size
+- decoder layout
+- status panel error message
+- `MDetectOnDevice` error lines
 
 ## Server Mode curl Check
 Before testing on the phone, verify the same server with curl:
@@ -153,6 +215,13 @@ log_id=<number>
 13. Server `/api/detection-logs/` shows a recent log.
 
 The active smoke model is pretrained YOLOv8n COCO. Seeing `person`, `bus`, `bottle`, or `cup` is correct. The project-specific `class_01/class_02/other` model must be trained and activated later.
+
+## Server Mode vs On-device Mode
+- Server Mode sends sampled JPEG frames to Django and logs detections on the server.
+- On-device Mode runs the downloaded TFLite model locally and renders detections in the app.
+- On-device DetectionLog sync is not part of Step 19 and can be added later.
+- Server Mode validates the active `.pt` model path; On-device Mode validates the downloaded `model.tflite` tensor shape.
+- Step 20 does not change the decoder for new model shapes; it captures the information needed for that next change.
 
 ## DetectionLog Check
 From the server PC:
@@ -200,10 +269,35 @@ If `adb` is not available, install manually:
 4. Install.
 5. Launch MDetect and allow camera permission.
 
+## Step 22 Auth Test
+
+Step 23 server smoke test passed. Detailed result: `docs/auth_real_device_test_result.md`.
+
+1. Launch MDetect.
+2. Confirm the landing status starts as `Disconnected` when no valid session is stored.
+3. Tap `로그인`.
+4. For a new user, tap `회원가입`, submit username, phone number, password, and confirm password.
+5. In Django Admin, approve the new `AccountProfile`.
+6. Return to the app and log in with username/password.
+7. Confirm the welcome message and `Connected` status on Home.
+8. Close and reopen the app within 7 days.
+9. Confirm automatic restore succeeds through `refresh_token + device_token`.
+
+Phone number is not used as proof of device ownership. It is stored as member information only.
+
+If a fresh test is needed and no logout screen is available:
+
+```text
+Android Settings -> Apps -> MDetect -> Storage -> Clear data
+```
+
 ## Failure Checklist
 - `Settings > Test` fails: verify phone and PC are on the same network, server is running on `0.0.0.0:8000`, firewall allows `8000/tcp`, and the app URL uses the PC LAN IP.
 - Login fails: rerun `ensure_mvp_test_user` and check username/password in Settings.
 - Camera opens but no boxes: point at common COCO objects and check whether status says `model_available=true`.
+- On-device status says model missing: open Model Update and download the deployed Android package.
+- On-device status says unsupported output shape: the downloaded TFLite export variant is not covered by the Step 19 raw YOLO decoder.
+- On-device status says bitmap decode failed: rebuild/install the latest APK and retest Camera Detection.
 - Status shows no active model: run `python manage.py list_trained_models` and activate `step10_yolov8n_smoke_model`.
 - DetectionLog does not increase: confirm the app is in `SERVER` mode and detection is started.
 

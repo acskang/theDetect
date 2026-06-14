@@ -1,7 +1,7 @@
 # Codex Prompt 02 - Server Core
 
 ## 목표
-MDetect 서버의 핵심 모델, JWT 인증, 관리자 콘솔, 이미지 업로드를 구현한다.
+theDetect 서버의 핵심 모델, JWT 인증, 관리자 콘솔, 이미지 업로드를 구현한다.
 
 ## 구현
 - ObjectClass, UploadedImage, DatasetVersion, DetectionLog 기본 모델

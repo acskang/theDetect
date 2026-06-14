@@ -1,6 +1,7 @@
 package com.thesysm.mdetect
 
 import android.app.Application
+import android.graphics.BitmapFactory
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.thesysm.mdetect.data.AuthRepository
@@ -9,9 +10,12 @@ import com.thesysm.mdetect.data.ModelRepository
 import com.thesysm.mdetect.data.SettingsRepository
 import com.thesysm.mdetect.inference.OnDeviceDetector
 import com.thesysm.mdetect.model.AppSettings
+import com.thesysm.mdetect.model.AuthUserState
 import com.thesysm.mdetect.model.DetectionBox
 import com.thesysm.mdetect.model.DetectionMode
+import com.thesysm.mdetect.model.ModelFileState
 import com.thesysm.mdetect.model.ModelMetadata
+import com.thesysm.mdetect.model.OnDeviceDebugState
 import com.thesysm.mdetect.network.ApiClient
 import com.thesysm.mdetect.network.DetectionHistoryItem
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,12 +42,20 @@ data class AppUiState(
     val fps: Float = 0f,
     val latencyMs: Long = 0L,
     val detecting: Boolean = false,
-    val latestServerModel: ModelMetadata? = null
+    val latestServerModel: ModelMetadata? = null,
+    val modelFileState: ModelFileState = ModelFileState(),
+    val onDeviceDebug: OnDeviceDebugState = OnDeviceDebugState(),
+    val authUser: AuthUserState = AuthUserState(),
+    val authStatus: String = "Disconnected",
+    val authMessage: String = "",
+    val cameraStatusOverlayVisible: Boolean = true
 )
 
 enum class AppScreen {
     SPLASH,
     LANDING,
+    LOGIN,
+    SIGN_UP,
     HOME,
     CAMERA,
     HISTORY,
@@ -58,6 +70,7 @@ class MDetectViewModel(application: Application) : AndroidViewModel(application)
     private val modelRepository = ModelRepository(application, apiClient)
     private val detectionRepository = DetectionRepository(apiClient)
     private val onDeviceDetector = OnDeviceDetector(modelRepository)
+    private var onDeviceFrameInFlight = false
 
     private val _uiState = MutableStateFlow(AppUiState())
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
@@ -68,27 +81,44 @@ class MDetectViewModel(application: Application) : AndroidViewModel(application)
                 _uiState.value = _uiState.value.copy(settings = settings)
             }
         }
+        viewModelScope.launch {
+            settingsRepository.authUserFlow.collectLatest { authUser ->
+                _uiState.value = _uiState.value.copy(
+                    authUser = authUser,
+                    authStatus = if (authUser.connected) "Connected" else "Disconnected",
+                    authMessage = authUser.message
+                )
+            }
+        }
         bootstrap()
     }
 
     fun bootstrap() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(loading = true, detectionStatus = "Starting")
-            val login = authRepository.ensureLoggedIn()
+            _uiState.value = _uiState.value.copy(loading = true, detectionStatus = "Starting", authStatus = "Disconnected")
+            val session = authRepository.restoreSession()
             val health = runCatching { apiClient.api().health() }
+            val connected = session.isSuccess
             _uiState.value = _uiState.value.copy(
                 loading = false,
-                screen = AppScreen.LANDING,
+                screen = if (connected) AppScreen.HOME else AppScreen.LANDING,
                 modelMetadata = modelRepository.currentMetadata(),
+                modelFileState = modelRepository.localFileState(),
                 serverStatus = if (health.getOrNull()?.isSuccessful == true) "Connected" else "Unavailable",
-                networkStatus = if (login.isSuccess) "Authenticated" else "Login failed: ${login.exceptionOrNull()?.message}",
-                detectionStatus = "Ready"
+                networkStatus = if (connected) "Connected" else "Disconnected",
+                authStatus = if (connected) "Connected" else "Disconnected",
+                authMessage = session.getOrNull() ?: session.exceptionOrNull()?.message.orEmpty(),
+                detectionStatus = if (connected) "Ready" else "Login required"
             )
         }
     }
 
     fun navigate(screen: AppScreen) {
-        _uiState.value = _uiState.value.copy(screen = screen)
+        _uiState.value = _uiState.value.copy(
+            screen = screen,
+            modelMetadata = if (screen == AppScreen.MODEL_UPDATE) modelRepository.currentMetadata() else _uiState.value.modelMetadata,
+            modelFileState = if (screen == AppScreen.MODEL_UPDATE) modelRepository.localFileState() else _uiState.value.modelFileState,
+        )
         if (screen == AppScreen.HISTORY) loadHistory()
     }
 
@@ -107,10 +137,63 @@ class MDetectViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun autoLogin() {
+    fun login(username: String, password: String) {
         viewModelScope.launch {
-            val result = authRepository.autoLogin()
-            _uiState.value = _uiState.value.copy(networkStatus = if (result.isSuccess) "Authenticated" else "Login failed: ${result.exceptionOrNull()?.message}")
+            _uiState.value = _uiState.value.copy(networkStatus = "Logging in", authStatus = "Disconnected")
+            val result = authRepository.login(username, password)
+            _uiState.value = if (result.isSuccess) {
+                _uiState.value.copy(
+                    screen = AppScreen.HOME,
+                    networkStatus = "Connected",
+                    authStatus = "Connected",
+                    authMessage = result.getOrThrow(),
+                    detectionStatus = "Ready"
+                )
+            } else {
+                _uiState.value.copy(
+                    networkStatus = "Login failed: ${result.exceptionOrNull()?.message}",
+                    authStatus = "Login required",
+                    authMessage = result.exceptionOrNull()?.message ?: "Login failed"
+                )
+            }
+        }
+    }
+
+    fun signup(username: String, phoneNumber: String, password: String, confirmPassword: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(networkStatus = "Signing up")
+            val result = authRepository.signup(username, phoneNumber, password, confirmPassword)
+            _uiState.value = if (result.isSuccess) {
+                _uiState.value.copy(
+                    screen = AppScreen.LOGIN,
+                    networkStatus = "Signup requested",
+                    authStatus = "Approval pending",
+                    authMessage = result.getOrThrow()
+                )
+            } else {
+                _uiState.value.copy(
+                    networkStatus = "Signup failed: ${result.exceptionOrNull()?.message}",
+                    authStatus = "Disconnected",
+                    authMessage = result.exceptionOrNull()?.message ?: "Signup failed"
+                )
+            }
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            val result = authRepository.logout()
+            _uiState.value = _uiState.value.copy(
+                screen = AppScreen.LANDING,
+                authUser = AuthUserState(),
+                authStatus = "Login required",
+                authMessage = result.getOrNull().orEmpty(),
+                networkStatus = result.getOrNull() ?: "Logout failed: ${result.exceptionOrNull()?.message}",
+                detectionStatus = "Login required",
+                detecting = false,
+                detections = emptyList(),
+                history = emptyList(),
+            )
         }
     }
 
@@ -123,9 +206,16 @@ class MDetectViewModel(application: Application) : AndroidViewModel(application)
             }
             val result = modelRepository.checkLatestVersion()
             _uiState.value = if (result.isSuccess) {
-                _uiState.value.copy(latestServerModel = result.getOrNull(), networkStatus = "Latest model checked")
+                _uiState.value.copy(
+                    latestServerModel = result.getOrNull(),
+                    modelFileState = modelRepository.localFileState(),
+                    networkStatus = "Latest model checked",
+                )
             } else {
-                _uiState.value.copy(networkStatus = result.exceptionOrNull()?.message ?: "Latest model unavailable")
+                _uiState.value.copy(
+                    modelFileState = modelRepository.localFileState(),
+                    networkStatus = result.exceptionOrNull()?.message ?: "Latest model unavailable",
+                )
             }
         }
     }
@@ -139,9 +229,16 @@ class MDetectViewModel(application: Application) : AndroidViewModel(application)
             }
             val result = modelRepository.downloadLatestPackage()
             _uiState.value = if (result.isSuccess) {
-                _uiState.value.copy(modelMetadata = result.getOrThrow(), networkStatus = "Model downloaded")
+                _uiState.value.copy(
+                    modelMetadata = result.getOrThrow(),
+                    modelFileState = modelRepository.localFileState(),
+                    networkStatus = "Model downloaded",
+                )
             } else {
-                _uiState.value.copy(networkStatus = "Model download failed: ${result.exceptionOrNull()?.message}")
+                _uiState.value.copy(
+                    modelFileState = modelRepository.localFileState(),
+                    networkStatus = "Model download failed: ${result.exceptionOrNull()?.message}",
+                )
             }
         }
     }
@@ -166,8 +263,20 @@ class MDetectViewModel(application: Application) : AndroidViewModel(application)
             }
         }
         if (active && _uiState.value.settings.detectionMode == DetectionMode.ON_DEVICE) {
-            onDeviceDetector.load()
+            val loaded = onDeviceDetector.load()
+            _uiState.value = _uiState.value.copy(
+                detectionStatus = onDeviceDetector.statusMessage,
+                onDeviceDebug = onDeviceDetector.debugState(),
+                modelFileState = modelRepository.localFileState(),
+                detections = if (loaded) _uiState.value.detections else emptyList(),
+            )
         }
+    }
+
+    fun toggleCameraStatusOverlay() {
+        _uiState.value = _uiState.value.copy(
+            cameraStatusOverlayVisible = !_uiState.value.cameraStatusOverlayVisible
+        )
     }
 
     fun processFrame(jpegBytes: ByteArray) {
@@ -197,7 +306,45 @@ class MDetectViewModel(application: Application) : AndroidViewModel(application)
                     )
                 }
                 DetectionMode.ON_DEVICE -> {
-                    _uiState.value = _uiState.value.copy(detectionStatus = onDeviceDetector.statusMessage)
+                    if (onDeviceFrameInFlight) return@launch
+                    onDeviceFrameInFlight = true
+                    var detections: List<DetectionBox> = emptyList()
+                    var statusMessage = "On-device: waiting"
+                    val elapsed = try {
+                        measureTimeMillis {
+                            val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
+                            if (bitmap == null) {
+                                statusMessage = "On-device: bitmap decode failed"
+                            } else {
+                                val result = onDeviceDetector.detect(
+                                    bitmap = bitmap,
+                                    confidenceThreshold = state.settings.confidenceThreshold,
+                                    iouThreshold = state.settings.iouThreshold,
+                                )
+                                result.onSuccess {
+                                    detections = it
+                                    statusMessage = onDeviceDetector.statusMessage
+                                }
+                                result.onFailure {
+                                    statusMessage = it.message ?: onDeviceDetector.statusMessage
+                                }
+                                bitmap.recycle()
+                            }
+                        }
+                    } catch (exc: Exception) {
+                        statusMessage = "On-device error: ${exc.message}"
+                        0L
+                    } finally {
+                        onDeviceFrameInFlight = false
+                    }
+                    _uiState.value = _uiState.value.copy(
+                        detections = detections,
+                        latencyMs = elapsed,
+                        fps = if (elapsed > 0) 1000f / elapsed else 0f,
+                        detectionStatus = statusMessage,
+                        onDeviceDebug = onDeviceDetector.debugState(),
+                        modelFileState = modelRepository.localFileState(),
+                    )
                 }
             }
         }

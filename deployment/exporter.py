@@ -15,6 +15,12 @@ from .models import AndroidModelPackage
 
 
 def yolo_executable():
+    configured = getattr(settings, 'MDETECT_EXPORT_YOLO_BIN', '') or os.environ.get('MDETECT_EXPORT_YOLO_BIN', '')
+    if configured:
+        configured_path = Path(configured).expanduser()
+        if configured_path.is_file():
+            return str(configured_path)
+
     executable = shutil.which('yolo')
     if executable:
         return executable
@@ -28,6 +34,11 @@ def yolo_executable():
 
 def yolo_subprocess_env():
     env = os.environ.copy()
+    executable = yolo_executable()
+    if executable:
+        executable_bin = str(Path(executable).resolve().parent)
+        env['PATH'] = f'{executable_bin}{os.pathsep}{env.get("PATH", "")}'
+        env.setdefault('MDETECT_EXPORT_YOLO_BIN', executable)
     cuda_lib = Path(sys.executable).resolve().parents[1] / 'lib' / f'python{sys.version_info.major}.{sys.version_info.minor}' / 'site-packages' / 'nvidia' / 'cu13' / 'lib'
     if cuda_lib.is_dir():
         existing = env.get('LD_LIBRARY_PATH')
@@ -106,6 +117,9 @@ def run_export_package(package_id):
         yolo_command = yolo_executable()
         command = [yolo_command or 'yolo', 'export', f'model={model_path}', 'format=tflite', f'imgsz={package.input_size}']
         with log_path.open('w', encoding='utf-8') as log:
+            log.write(f'export_yolo_bin={yolo_command or "yolo"}\n')
+            log.write(f'django_python={sys.executable}\n')
+            log.write(f'working_dir={output_dir}\n\n')
             log.write(' '.join(command) + '\n\n')
             if yolo_command is None:
                 raise RuntimeError('yolo command is not available in this environment.')
@@ -127,11 +141,10 @@ def run_export_package(package_id):
         package.error_message = ''
         package.save(update_fields=['tflite_file', 'labels_file', 'metadata_file', 'status', 'error_message'])
     except Exception as exc:
-        package.status = AndroidModelPackage.Status.FAILED
-        package.error_message = str(exc)
-        package.save(update_fields=['status', 'error_message'])
         with log_path.open('a', encoding='utf-8') as log:
             log.write(f'\nERROR: {exc}\n')
+            log.write('Failed AndroidModelPackage record deleted so model_version can be reused.\n')
+        package.delete()
     finally:
         close_old_connections()
 

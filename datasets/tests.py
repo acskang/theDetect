@@ -476,28 +476,31 @@ class DatasetBuildTests(TestCase):
         self.assertNotContains(response, 'Use augmentation')
         self.assertContains(response, 'Expected total')
 
-    def test_augmented_dataset_build_post_saves_augmented_build_type(self):
+    def test_augmented_dataset_build_post_starts_background_build(self):
         self.client.force_login(self.user)
-        response = self.client.post('/datasets/build/augmented/', {
-            'name': 'dataset_augmented_post',
-            'description': 'augmented dataset',
-            'train_ratio': 80,
-            'val_ratio': 10,
-            'test_ratio': 10,
-            'random_seed': 42,
-            'include_only_labeled_images': 'on',
-            'exclude_invalid_boxes': 'on',
-            'build_memo': 'memo',
-            'target_images_per_class': 3,
-            'max_augmentations_per_source_image': 3,
-            'color_safe_augmentation': 'on',
-        })
+        with patch('datasets.views.start_augmented_dataset_build') as mocked_start:
+            response = self.client.post('/datasets/build/augmented/', {
+                'name': 'dataset_augmented_post',
+                'description': 'augmented dataset',
+                'train_ratio': 80,
+                'val_ratio': 10,
+                'test_ratio': 10,
+                'random_seed': 42,
+                'include_only_labeled_images': 'on',
+                'exclude_invalid_boxes': 'on',
+                'build_memo': 'memo',
+                'target_images_per_class': 3,
+                'max_augmentations_per_source_image': 3,
+                'color_safe_augmentation': 'on',
+            })
 
         self.assertEqual(response.status_code, 302)
         dataset = DatasetVersion.objects.get(name='dataset_augmented_post')
         self.assertEqual(dataset.build_config_json['build_type'], 'augmented')
         self.assertTrue(dataset.build_config_json['use_augmentation'])
-        self.assertGreater(dataset.class_summary_json['augmented_image_count'], 0)
+        self.assertTrue(dataset.build_config_json['background_build'])
+        self.assertEqual(dataset.status, DatasetVersion.Status.PENDING)
+        mocked_start.assert_called_once_with(dataset)
 
     def test_augmented_dataset_build_calls_augmentation_logic(self):
         form = AugmentedDatasetBuildForm(data={

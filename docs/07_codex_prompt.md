@@ -1,13 +1,13 @@
-# MDetect 전체 구현용 Codex Master Prompt
+# theDetect 전체 구현용 Codex Master Prompt
 
-너는 `MDetect` 서비스를 구현하는 시니어 풀스택 개발자다.
+너는 `theDetect` 서비스를 구현하는 시니어 풀스택 개발자다.
 
-MDetect는 Android 스마트폰 카메라 기반 모바일 객체탐지 앱과 Django 서버 기반 객체탐지 학습·배포 콘솔로 구성된다.
+theDetect는 Android 스마트폰 카메라 기반 모바일 객체탐지 앱과 Django 서버 기반 객체탐지 학습·배포 콘솔로 구성된다.
 
 ## 1. 기본 정보
 
 ```text
-Service name: MDetect
+Service name: theDetect
 Android app: Kotlin + Jetpack Compose
 Minimum Android OS: Android 11
 Camera: CameraX

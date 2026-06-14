@@ -5,11 +5,13 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.utils import timezone
 
 from datasets.models import DatasetVersion
 
 from .models import TrainingJob
 from .runner import yolo_executable, yolo_subprocess_env
+from .views import PENDING_JOB_ACTIVE_WINDOW, is_active_training_job
 
 
 class TrainingJobTests(TestCase):
@@ -52,6 +54,17 @@ class TrainingJobTests(TestCase):
         response = self.client.get(f'/training/jobs/{job.id}/')
 
         self.assertEqual(response.status_code, 200)
+
+    def test_stale_pending_training_job_is_not_active(self):
+        job = TrainingJob.objects.create(name='stale_pending_job', dataset_version=self.dataset, created_by=self.user)
+        job.created_at = timezone.now() - PENDING_JOB_ACTIVE_WINDOW - timezone.timedelta(minutes=1)
+        job.save(update_fields=['created_at'])
+
+        self.assertFalse(is_active_training_job(job))
+        response = self.client.get('/training/jobs/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Training job is running in the background.')
 
     def test_yolo_executable_falls_back_to_current_python_environment(self):
         with TemporaryDirectory() as temp_dir:

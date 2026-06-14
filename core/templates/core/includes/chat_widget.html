@@ -1,0 +1,384 @@
+{% load static %}
+{% if chat_widget_enabled %}
+  <style>
+    .th-chat-widget {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 60;
+      font-family: Inter, "Noto Sans KR", system-ui, sans-serif;
+    }
+    .th-chat-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 66px;
+      height: 66px;
+      border: 0;
+      border-radius: 999px;
+      padding: 0;
+      background: transparent;
+      color: #f8fafc;
+      box-shadow: 0 18px 34px rgba(15, 23, 42, .3);
+      cursor: pointer;
+      animation: th-chat-float 3.2s ease-in-out infinite;
+      transition: transform .18s ease, filter .18s ease, box-shadow .18s ease;
+    }
+    .th-chat-button:hover {
+      filter: brightness(1.04);
+      transform: translateY(-3px) scale(1.04);
+      box-shadow: 0 24px 42px rgba(15, 23, 42, .34);
+    }
+    .th-chat-button:focus-visible,
+    .th-chat-close:focus-visible,
+    .th-chat-send:focus-visible,
+    .th-chat-input:focus-visible {
+      outline: 3px solid rgba(226, 161, 174, .34);
+      outline-offset: 3px;
+    }
+    .th-chat-button-icon {
+      width: 66px;
+      height: 66px;
+      border-radius: 999px;
+      background: transparent;
+      object-fit: cover;
+      display: block;
+    }
+    @keyframes th-chat-float {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-8px);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .th-chat-button {
+        animation: none;
+      }
+    }
+    .th-chat-panel {
+      position: absolute;
+      right: 0;
+      bottom: 76px;
+      display: flex;
+      flex-direction: column;
+      width: min(390px, calc(100vw - 32px));
+      height: min(560px, calc(100vh - 122px));
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, .32);
+      border-radius: 22px;
+      background: rgba(15, 23, 42, .98);
+      color: #e5e7eb;
+      box-shadow: 0 28px 80px rgba(0, 0, 0, .44);
+      backdrop-filter: blur(18px);
+    }
+    .th-chat-panel[hidden] { display: none; }
+    .th-chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px;
+      border-bottom: 1px solid rgba(148, 163, 184, .22);
+      background: rgba(226, 161, 174, .12);
+    }
+    .th-chat-header strong,
+    .th-chat-header span {
+      display: block;
+    }
+    .th-chat-header strong { font-size: 16px; }
+    .th-chat-header span {
+      margin-top: 3px;
+      color: #cbd5e1;
+      font-size: 12px;
+    }
+    .th-chat-close {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border: 1px solid rgba(148, 163, 184, .32);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, .05);
+      color: #e5e7eb;
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .th-chat-messages {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow-y: auto;
+      padding: 16px;
+    }
+    .th-chat-message { max-width: 86%; }
+    .th-chat-message p {
+      margin: 0;
+      border-radius: 16px;
+      padding: 10px 12px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      line-height: 1.55;
+      font-size: 14px;
+    }
+    .th-chat-message-user { align-self: flex-end; }
+    .th-chat-message-user p {
+      border-bottom-right-radius: 5px;
+      background: #f3d2d9;
+      color: #2f2a25;
+    }
+    .th-chat-message-assistant { align-self: flex-start; }
+    .th-chat-message-assistant p {
+      border: 1px solid rgba(148, 163, 184, .28);
+      border-bottom-left-radius: 5px;
+      background: rgba(255, 255, 255, .06);
+      color: #e5e7eb;
+    }
+    .th-chat-message-loading p { color: #94a3b8; }
+    .th-chat-error {
+      margin: 0 16px 10px;
+      border: 1px solid rgba(248, 113, 113, .28);
+      border-radius: 12px;
+      background: rgba(127, 29, 29, .24);
+      color: #fecaca;
+      padding: 9px 10px;
+      font-size: 13px;
+    }
+    .th-chat-form {
+      display: flex;
+      align-items: end;
+      gap: 10px;
+      padding: 12px;
+      border-top: 1px solid rgba(148, 163, 184, .22);
+    }
+    .th-chat-input {
+      flex: 1;
+      min-height: 44px;
+      max-height: 120px;
+      resize: vertical;
+      border: 1px solid rgba(148, 163, 184, .32);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .06);
+      color: #f8fafc;
+      padding: 10px 12px;
+      font: inherit;
+    }
+    .th-chat-input::placeholder { color: #94a3b8; }
+    .th-chat-send {
+      flex: 0 0 auto;
+      min-height: 44px;
+      border: 0;
+      border-radius: 12px;
+      background: #e6a1ae;
+      color: #2f2a25;
+      padding: 0 14px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .th-chat-send:disabled,
+    .th-chat-input:disabled {
+      opacity: .68;
+      cursor: wait;
+    }
+    @media (max-width: 640px) {
+      .th-chat-widget {
+        right: 14px;
+        bottom: 14px;
+        left: 14px;
+        display: flex;
+        justify-content: center;
+      }
+      .th-chat-button {
+        width: 64px;
+        height: 64px;
+      }
+      .th-chat-button-icon {
+        width: 64px;
+        height: 64px;
+      }
+      .th-chat-panel {
+        position: fixed;
+        right: 10px;
+        bottom: 82px;
+        left: 10px;
+        width: auto;
+        height: min(72vh, 560px);
+        max-height: calc(100vh - 100px);
+      }
+      .th-chat-form { align-items: stretch; }
+      .th-chat-input { min-width: 0; }
+    }
+  </style>
+  <div class="th-chat-widget" data-th-chat-widget data-csrf-token="{{ csrf_token }}">
+    <button class="th-chat-button" type="button" data-th-chat-toggle aria-label="theDetect AI 챗봇 열기" aria-expanded="false">
+      <img class="th-chat-button-icon" src="{% static 'core/img/floating_chat_button_recycle_ai.png' %}" alt="" aria-hidden="true">
+    </button>
+    <section class="th-chat-panel" data-th-chat-panel aria-label="theDetect AI chat" hidden>
+      <header class="th-chat-header">
+        <div>
+          <strong>theDetect AI</strong>
+          <span>Manual 기반 사용 안내</span>
+        </div>
+        <button class="th-chat-close" type="button" data-th-chat-close aria-label="채팅창 닫기">×</button>
+      </header>
+      <div class="th-chat-messages" data-th-chat-messages aria-live="polite">
+        <div class="th-chat-message th-chat-message-assistant">
+          <p>안녕하세요. theDetect 매뉴얼을 기준으로 데이터셋, 학습, Android 앱, 모델 배포 절차를 안내할게요.</p>
+        </div>
+      </div>
+      <p class="th-chat-error" data-th-chat-error hidden></p>
+      <form class="th-chat-form" data-th-chat-form>
+        <label class="sr-only" for="th-chat-input">메시지</label>
+        <textarea id="th-chat-input" class="th-chat-input" data-th-chat-input rows="2" maxlength="1000" placeholder="무엇을 확인할까요?"></textarea>
+        <button class="th-chat-send" type="submit" data-th-chat-send aria-label="메시지 전송">전송</button>
+      </form>
+    </section>
+  </div>
+  <script>
+    (function () {
+      const widget = document.querySelector("[data-th-chat-widget]");
+      if (!widget || widget.dataset.ready === "1") return;
+      widget.dataset.ready = "1";
+
+      const toggleButton = widget.querySelector("[data-th-chat-toggle]");
+      const closeButton = widget.querySelector("[data-th-chat-close]");
+      const panel = widget.querySelector("[data-th-chat-panel]");
+      const form = widget.querySelector("[data-th-chat-form]");
+      const input = widget.querySelector("[data-th-chat-input]");
+      const sendButton = widget.querySelector("[data-th-chat-send]");
+      const messages = widget.querySelector("[data-th-chat-messages]");
+      const errorBox = widget.querySelector("[data-th-chat-error]");
+      const csrfToken = getCookie("csrftoken") || widget.dataset.csrfToken || "";
+      const history = [];
+      const maxHistoryMessages = 6;
+
+      function getCookie(name) {
+        const cookies = document.cookie ? document.cookie.split(";") : [];
+        for (const cookie of cookies) {
+          const trimmed = cookie.trim();
+          if (trimmed.startsWith(`${name}=`)) {
+            return decodeURIComponent(trimmed.slice(name.length + 1));
+          }
+        }
+        return "";
+      }
+
+      function setOpen(open) {
+        panel.hidden = !open;
+        toggleButton.setAttribute("aria-expanded", open ? "true" : "false");
+        if (open) input.focus();
+      }
+
+      function setBusy(busy) {
+        input.disabled = busy;
+        sendButton.disabled = busy;
+        sendButton.textContent = busy ? "응답 중" : "전송";
+      }
+
+      function showError(message) {
+        errorBox.textContent = message;
+        errorBox.hidden = !message;
+      }
+
+      function appendMessage(role, content, loading) {
+        const item = document.createElement("div");
+        item.className = `th-chat-message th-chat-message-${role}`;
+        if (loading) item.classList.add("th-chat-message-loading");
+        const text = document.createElement("p");
+        text.textContent = content;
+        item.appendChild(text);
+        messages.appendChild(item);
+        messages.scrollTop = messages.scrollHeight;
+        return item;
+      }
+
+      function remember(role, content) {
+        history.push({ role, content });
+        while (history.length > maxHistoryMessages) history.shift();
+      }
+
+      function collectPageContext() {
+        const headings = Array.from(document.querySelectorAll("main h1, main h2, [data-page-title], header h1"))
+          .map((element) => element.textContent.trim())
+          .filter(Boolean)
+          .slice(0, 8);
+        const main = document.querySelector("main") || document.body;
+        const visibleText = (main.innerText || "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 2000);
+        return {
+          url: window.location.href,
+          path: window.location.pathname,
+          title: document.title,
+          headings,
+          visible_text: visibleText,
+        };
+      }
+
+      async function sendMessage(message) {
+        showError("");
+        appendMessage("user", message, false);
+        remember("user", message);
+        const loading = appendMessage("assistant", "매뉴얼을 확인하고 있습니다...", true);
+        setBusy(true);
+        try {
+          const response = await fetch("{% url 'core:llama_chat' %}", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrfToken,
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({
+              message,
+              history: history.slice(0, -1),
+              page: collectPageContext(),
+            }),
+          });
+          const responseText = await response.text();
+          let data = null;
+          try {
+            data = JSON.parse(responseText);
+          } catch (parseError) {
+            throw new Error("AI 챗봇 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+          }
+          loading.remove();
+          if (!response.ok || !data.ok) {
+            throw new Error(data.error || "AI 챗봇 응답을 가져오지 못했습니다.");
+          }
+          appendMessage("assistant", data.reply, false);
+          remember("assistant", data.reply);
+        } catch (error) {
+          loading.remove();
+          const messageText = error.message || "지금은 AI 챗봇 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.";
+          appendMessage("assistant", messageText, false);
+          showError(messageText);
+        } finally {
+          setBusy(false);
+          input.focus();
+        }
+      }
+
+      toggleButton.addEventListener("click", () => setOpen(panel.hidden));
+      closeButton.addEventListener("click", () => setOpen(false));
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          form.requestSubmit();
+        }
+      });
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const message = input.value.trim();
+        if (!message || input.disabled) return;
+        input.value = "";
+        sendMessage(message);
+      });
+    })();
+  </script>
+{% endif %}

@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from django.core.management.utils import get_random_secret_key
@@ -53,6 +54,27 @@ MEDIA_URL = os.environ.get('MEDIA_URL', 'media/')
 MEDIA_ROOT = Path(os.environ.get('MEDIA_ROOT', PROJECT_DATA_DIR))
 MDETECT_MAX_UPLOAD_SIZE = int(os.environ.get('MDETECT_MAX_UPLOAD_SIZE', 20 * 1024 * 1024))
 MDETECT_MAX_IMAGE_LONG_EDGE = int(os.environ.get('MDETECT_MAX_IMAGE_LONG_EDGE', '1280'))
+MDETECT_EXPORT_YOLO_BIN = os.environ.get(
+    'MDETECT_EXPORT_YOLO_BIN',
+    '/home/cskang/miniconda3/envs/mdetect-export/bin/yolo',
+)
+
+CHAT_WIDGET_ENABLED = env_bool('CHAT_WIDGET_ENABLED', True)
+CHAT_OLLAMA_BASE_URL = os.environ.get('CHAT_OLLAMA_BASE_URL', 'http://127.0.0.1:11434')
+CHAT_OLLAMA_MODEL = os.environ.get('CHAT_OLLAMA_MODEL', 'llama3.2-vision:11b')
+CHAT_OLLAMA_TIMEOUT_SECONDS = int(os.environ.get('CHAT_OLLAMA_TIMEOUT_SECONDS', '30'))
+CHAT_HISTORY_MAX_MESSAGES = int(os.environ.get('CHAT_HISTORY_MAX_MESSAGES', '6'))
+CHAT_MESSAGE_MAX_LENGTH = int(os.environ.get('CHAT_MESSAGE_MAX_LENGTH', '1000'))
+CHAT_MANUAL_CONTEXT_DOCS = int(os.environ.get('CHAT_MANUAL_CONTEXT_DOCS', '5'))
+CHAT_MANUAL_CONTEXT_CHARS = int(os.environ.get('CHAT_MANUAL_CONTEXT_CHARS', '9000'))
+CHAT_SYSTEM_PROMPT = os.environ.get(
+    'CHAT_SYSTEM_PROMPT',
+    '너는 theDetect 서비스의 친절한 AI 안내 챗봇이다. '
+    'theDetect는 객체 클래스 관리, 이미지 데이터셋, 라벨링, 데이터셋 빌드, 증강 데이터셋 빌드, YOLO 학습, '
+    '모델 레지스트리, Android 모델 export/deployment, Android 앱 MDetect의 Server Mode/On-device Mode, Detection Logs를 다룬다. '
+    '반드시 제공된 theDetect manual context를 우선 근거로 답변하고, 근거가 부족하면 추측하지 말고 Manual 확인이 필요하다고 말한다. '
+    '답변은 짧고 실무적인 한국어로 한다. 비밀번호, 토큰, 개인정보 입력을 유도하지 않는다.',
+)
 
 
 # Application definition
@@ -65,6 +87,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
     'accounts',
     'core',
     'datasets',
@@ -98,6 +121,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'core.context_processors.chat_widget',
             ],
         },
     },
@@ -141,7 +165,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Seoul'
 
 USE_I18N = True
 
@@ -168,6 +192,13 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', False)
