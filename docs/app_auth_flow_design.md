@@ -89,6 +89,6 @@ Step 24 added Android local logout. Step 25 extends it with server logout:
 POST /api/auth/logout/
 ```
 
-Android sends the stored `refresh_token + device_token`. The server blacklists the refresh token and clears the matching `AccountProfile.device_token`. Android then clears local `access_token`, `refresh_token`, `device_token`, user id, username, phone number, approval status, connected state, welcome message, and legacy saved username/password values from DataStore.
+Android sends the stored `refresh_token + device_token`. The server blacklists the refresh token and clears the matching `AccountProfile.device_token`. Android then clears local `access_token`, `refresh_token`, `device_token`, user id, username, phone number, approval status, connected state, and welcome message from DataStore. The last successful username/password stays saved so the next login form can be prefilled.
 
 If server logout fails because of network or server state, Android still performs local logout. The user must log in again from that phone.

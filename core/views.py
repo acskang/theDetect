@@ -56,6 +56,172 @@ def landing(request):
     })
 
 
+def investor_briefing(request):
+    return render(request, 'core/investor_briefing.html', {
+        'service_start_url': reverse('core:server_detection'),
+        'demo_walkthrough_url': reverse('core:demo_walkthrough'),
+        'target_classes': [
+            '비누각 pink',
+            '비누각 white',
+            '비누각 mint',
+            '샴푸 케이스 white',
+        ],
+        'workflow_steps': [
+            {
+                'number': '01',
+                'title': '탐지 목표 정의',
+                'body': '찾아야 할 물체 이름을 먼저 정합니다.',
+                'link_url': reverse('datasets:object_class_list'),
+                'link_label': 'Object Classes',
+            },
+            {
+                'number': '02',
+                'title': '이미지 등록',
+                'body': '색상과 형태가 보이는 제품 사진을 모읍니다.',
+                'link_url': reverse('datasets:image_upload'),
+                'link_label': 'Image Dataset',
+            },
+            {
+                'number': '03',
+                'title': '이미지 라벨링',
+                'body': '사진에서 제품 위치를 표시합니다.',
+                'link_url': reverse('labeling:workspace'),
+                'link_label': 'Labeling Workspace',
+            },
+            {
+                'number': '04',
+                'title': '이미지 보강',
+                'body': '부족한 학습 예시를 더 다양하게 만듭니다.',
+                'link_url': reverse('datasets:augmented_dataset_build'),
+                'link_label': 'Augmented Dataset Build',
+            },
+            {
+                'number': '05',
+                'title': '학습 데이터 생성',
+                'body': '등록·라벨링된 이미지를 학습 가능한 묶음으로 정리합니다.',
+                'link_url': reverse('datasets:dataset_build'),
+                'link_label': 'Dataset Build',
+            },
+            {
+                'number': '06',
+                'title': '탐지 모델 학습',
+                'body': '정리된 이미지 묶음으로 물체를 찾는 기준을 만듭니다.',
+                'link_url': reverse('training:job_list'),
+                'link_label': 'Training Jobs',
+            },
+            {
+                'number': '07',
+                'title': '서버 사전 테스트',
+                'body': '스마트폰 배포 전에 웹에서 사진으로 먼저 확인합니다.',
+                'link_url': reverse('core:server_detection'),
+                'link_label': 'Server Detection',
+            },
+            {
+                'number': '08',
+                'title': '스마트폰 모델 변환',
+                'body': '스마트폰에서 사용할 수 있는 파일 묶음으로 내보냅니다.',
+                'link_url': reverse('deployment:android_export'),
+                'link_label': 'Android Model Export',
+            },
+            {
+                'number': '09',
+                'title': '스마트폰에서 다운로드',
+                'body': 'MDetect 앱이 배포된 모델을 내려받아 자체 탐지를 준비합니다.',
+                'link_url': reverse('deployment:package_list'),
+                'link_label': 'Model Deployment',
+            },
+            {
+                'number': '10',
+                'title': '스마트폰 자체 탐지',
+                'body': '네트워크가 불안정해도 스마트폰 안에서 물체를 찾습니다.',
+                'link_url': reverse('core:detection_logs'),
+                'link_label': 'Detection Logs',
+            },
+        ],
+    })
+
+
+def demo_walkthrough(request):
+    service_start_url = reverse('datasets:image_upload')
+    return render(request, 'core/demo_walkthrough.html', {
+        'service_start_url': service_start_url,
+        'investor_briefing_url': reverse('core:investor_briefing'),
+        'flow_items': [
+            '목표 정의',
+            '이미지 준비',
+            '라벨링과 보강',
+            '학습과 사전 테스트',
+            '스마트폰 자체 탐지',
+        ],
+        'demo_steps': [
+            {
+                'number': 'STEP 01',
+                'title': '탐지할 제품을 확인합니다.',
+                'icon': '◇',
+                'action': '비누각 색상별 3종과 샴푸 케이스 1종의 클래스 목록을 보여줍니다.',
+                'result': '서비스가 어떤 물체를 찾도록 준비되어 있는지 확인합니다.',
+                'value': '탐지 목표를 먼저 정해 같은 절차를 반복할 수 있습니다.',
+                'link_url': reverse('datasets:object_class_list'),
+                'link_label': '클래스 화면 보기',
+            },
+            {
+                'number': 'STEP 02',
+                'title': '이미지를 등록하고 표시합니다.',
+                'icon': '▧',
+                'action': '제품 사진을 등록하고, 사진 속 제품 위치를 표시합니다.',
+                'result': '등록된 이미지와 라벨링 작업 화면을 확인합니다.',
+                'value': '현장 사진을 학습에 쓸 수 있는 자료로 바꿉니다.',
+                'link_url': reverse('datasets:image_upload'),
+                'link_label': '이미지 등록 화면 보기',
+            },
+            {
+                'number': 'STEP 03',
+                'title': '이미지를 보강하고 학습 데이터로 만듭니다.',
+                'icon': '✦',
+                'action': '부족한 이미지를 보강하고 학습용 묶음을 생성합니다.',
+                'result': '원본 이미지가 학습 가능한 데이터셋으로 정리되는 화면을 봅니다.',
+                'value': '사진 준비부터 학습 준비까지 한 서비스 안에서 처리합니다.',
+                'link_url': reverse('datasets:augmented_dataset_build'),
+                'link_label': '보강 빌드 화면 보기',
+            },
+            {
+                'number': 'STEP 04',
+                'title': '학습하고 서버에서 먼저 테스트합니다.',
+                'icon': '◎',
+                'action': '학습 작업과 모델 목록을 확인하고, 서버에서 사진으로 사전 테스트합니다.',
+                'result': '스마트폰에 보내기 전에 탐지 결과를 웹에서 확인합니다.',
+                'value': '현장 배포 전에 결과를 미리 점검할 수 있습니다.',
+                'link_url': reverse('core:server_detection'),
+                'link_label': '서버 테스트 화면 보기',
+            },
+            {
+                'number': 'STEP 05',
+                'title': '스마트폰 모델로 변환하고 자체 탐지합니다.',
+                'icon': '▱',
+                'action': 'Android 모델 패키지를 만들고, MDetect 앱에서 내려받아 탐지합니다.',
+                'result': '스마트폰이 물체 탐지 에뮬레이터처럼 동작하고 기록을 남깁니다.',
+                'value': '서버에 계속 의존하지 않고 스마트폰 안에서 탐지할 수 있습니다.',
+                'link_url': reverse('deployment:package_list'),
+                'link_label': '배포 패키지 화면 보기',
+            },
+        ],
+        'viewer_focus': [
+            {
+                'title': '사용이 쉬운가',
+                'body': '처음 보는 사람도 설명 없이 시작할 수 있는지 확인합니다.',
+            },
+            {
+                'title': '결과가 이해되는가',
+                'body': '전문 지식 없이도 어떤 제품을 찾았는지 알 수 있는지 확인합니다.',
+            },
+            {
+                'title': '행동으로 이어지는가',
+                'body': '학습 결과가 스마트폰 현장 탐지로 이어지는지 확인합니다.',
+            },
+        ],
+    })
+
+
 @require_POST
 def llama_chat(request):
     if not getattr(settings, 'CHAT_WIDGET_ENABLED', True):

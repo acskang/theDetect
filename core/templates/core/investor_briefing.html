@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Investor Briefing | theDetect Object Detection</title>
+  <script>
+    (function () {
+      const stored = localStorage.getItem('mdetect-theme');
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const dark = stored ? stored === 'dark' : prefersDark;
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      document.documentElement.classList.toggle('dark', dark);
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --brief-bg: #f8fafc;
+      --brief-panel: #ffffff;
+      --brief-ink: #0f172a;
+      --brief-muted: #475569;
+      --brief-line: #e2e8f0;
+      --brief-blue: #2563eb;
+      --brief-blue-dark: #1d4ed8;
+      --brief-soft: #eff6ff;
+    }
+    [data-theme="dark"] {
+      color-scheme: dark;
+      --brief-bg: #0f172a;
+      --brief-panel: #111827;
+      --brief-ink: #e5e7eb;
+      --brief-muted: #94a3b8;
+      --brief-line: #243244;
+      --brief-blue: #60a5fa;
+      --brief-blue-dark: #3b82f6;
+      --brief-soft: #172554;
+    }
+    body {
+      background: var(--brief-bg);
+      color: var(--brief-ink);
+      font-family: Pretendard, Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .page-with-quick-rail { padding-left: 3.75rem; }
+    .quick-icon-rail {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 40;
+      display: flex;
+      width: 3.75rem;
+      flex-direction: column;
+      align-items: center;
+      gap: .375rem;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      background: #020617;
+      padding: .875rem .5rem;
+      color: #cbd5e1;
+    }
+    .quick-icon-link {
+      display: inline-flex;
+      width: 2.5rem;
+      height: 2.5rem;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      color: #cbd5e1;
+      font-size: 1rem;
+      line-height: 1;
+      text-decoration: none;
+    }
+    .quick-icon-link:hover,
+    .quick-icon-link:focus-visible {
+      background: rgba(255, 255, 255, .10);
+      color: #fff;
+      outline: none;
+    }
+    .quick-icon-link:focus-visible {
+      box-shadow: inset 0 0 0 2px rgba(96, 165, 250, .8);
+    }
+    @media (max-width: 767px) {
+      .page-with-quick-rail { padding-left: 0; }
+      .quick-icon-rail { display: none; }
+    }
+    .brief-wrap { max-width: 1180px; }
+    .brief-breadcrumb {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: .5rem;
+      font-size: 1.125rem;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+    .brief-breadcrumb a {
+      color: #64748b;
+      text-decoration: none;
+    }
+    .brief-breadcrumb a:hover,
+    .brief-breadcrumb a:focus-visible {
+      color: var(--brief-blue);
+      outline: none;
+    }
+    .brief-breadcrumb-separator {
+      color: #94a3b8;
+      flex: 0 0 auto;
+    }
+    .brief-breadcrumb-current {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #0f172a;
+    }
+    .brief-hero-title {
+      max-width: 40rem;
+      font-size: 1.875rem;
+      font-weight: 800;
+      line-height: 1.42;
+      letter-spacing: .02em;
+      word-break: keep-all;
+      overflow-wrap: break-word;
+    }
+    @media (min-width: 640px) {
+      .brief-hero-title { font-size: 2.125rem; line-height: 1.38; }
+    }
+    @media (min-width: 1024px) {
+      .brief-hero-title { font-size: 2.25rem; line-height: 1.36; }
+    }
+    .brief-card {
+      border: 1px solid var(--brief-line);
+      border-radius: 8px;
+      background: var(--brief-panel);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+    }
+    .brief-primary,
+    .brief-secondary {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      padding: 0 18px;
+      font-weight: 800;
+    }
+    .brief-primary {
+      border: 1px solid rgba(96, 165, 250, .30);
+      background: linear-gradient(180deg, #1e3a5f 0%, #172554 100%);
+      color: #eaf2ff;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
+    }
+    .brief-primary:hover,
+    .brief-primary:focus-visible {
+      border-color: rgba(147, 197, 253, .50);
+      background: linear-gradient(180deg, #244a74 0%, #1e3a5f 100%);
+      color: #fff;
+      outline: none;
+    }
+    .brief-secondary {
+      border: 1px solid var(--brief-line);
+      background: var(--brief-panel);
+      color: var(--brief-ink);
+    }
+    .brief-nav-link {
+      color: #334155;
+      background: transparent;
+    }
+    .brief-nav-link:hover,
+    .brief-nav-link:focus-visible {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+    .brief-icon {
+      display: inline-flex;
+      width: 44px;
+      height: 44px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      border: 1px solid rgba(37, 99, 235, .22);
+      background: linear-gradient(145deg, rgba(37, 99, 235, .12), rgba(20, 184, 166, .08));
+      color: #1d4ed8;
+      font-size: 20px;
+      font-weight: 900;
+      line-height: 1;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45);
+      flex: 0 0 auto;
+    }
+    .theme-toggle {
+      display: inline-flex;
+      min-height: 36px;
+      width: 36px;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--brief-line);
+      border-radius: 8px;
+      background: var(--brief-panel);
+      color: var(--brief-ink);
+      font-weight: 900;
+    }
+    .theme-icon { width: 18px; height: 18px; display: block; }
+    .theme-icon-moon { color: #facc15; }
+    .theme-icon-sun { color: #f8fafc; }
+    [data-theme="light"] .theme-icon-sun { display: none; }
+    [data-theme="dark"] .theme-icon-moon { display: none; }
+    [data-theme="dark"] .theme-toggle { background: #0b1220; border: 0; box-shadow: none; }
+    [data-theme="dark"] body,
+    [data-theme="dark"] .bg-white { background: var(--brief-bg) !important; color: var(--brief-ink) !important; }
+    [data-theme="dark"] header.bg-white\/95 { background: rgba(15, 23, 42, .94) !important; }
+    [data-theme="dark"] .brief-card,
+    [data-theme="dark"] .bg-slate-50,
+    [data-theme="dark"] .bg-blue-50 { background: var(--brief-panel) !important; border-color: var(--brief-line) !important; }
+    [data-theme="dark"] .text-slate-950,
+    [data-theme="dark"] .text-slate-900,
+    [data-theme="dark"] .text-slate-800,
+    [data-theme="dark"] .text-slate-700 { color: var(--brief-ink) !important; }
+    [data-theme="dark"] .text-slate-600,
+    [data-theme="dark"] .text-slate-500 { color: var(--brief-muted) !important; }
+    [data-theme="dark"] .border-slate-200,
+    [data-theme="dark"] .border-slate-300,
+    [data-theme="dark"] .border-blue-200 { border-color: var(--brief-line) !important; }
+    [data-theme="dark"] .brief-nav-link { color: #e5e7eb !important; }
+    [data-theme="dark"] .brief-nav-link:hover,
+    [data-theme="dark"] .brief-nav-link:focus-visible {
+      background: #243244 !important;
+      color: #ffffff !important;
+    }
+    [data-theme="dark"] .brief-breadcrumb a { color: #94a3b8; }
+    [data-theme="dark"] .brief-breadcrumb a:hover,
+    [data-theme="dark"] .brief-breadcrumb a:focus-visible { color: #bfdbfe; }
+    [data-theme="dark"] .brief-breadcrumb-current { color: var(--brief-ink); }
+    [data-theme="dark"] .brief-primary {
+      border-color: rgba(96, 165, 250, .28);
+      background: linear-gradient(180deg, rgba(30, 58, 95, .96), rgba(23, 37, 84, .96));
+      color: #dbeafe;
+    }
+    [data-theme="dark"] .brief-primary:hover,
+    [data-theme="dark"] .brief-primary:focus-visible {
+      border-color: rgba(147, 197, 253, .56);
+      background: linear-gradient(180deg, rgba(37, 78, 121, .98), rgba(30, 58, 95, .98));
+      color: #fff;
+    }
+    [data-theme="dark"] .brief-icon {
+      border-color: rgba(96, 165, 250, .24);
+      background: linear-gradient(145deg, rgba(30, 64, 175, .22), rgba(15, 118, 110, .14));
+      color: #93c5fd;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+    }
+    [data-theme="dark"] .bg-slate-950 { background: #020617 !important; }
+    [data-theme="dark"] .brief-secondary,
+    [data-theme="dark"] a.bg-white { background: #111827 !important; color: var(--brief-ink) !important; border-color: var(--brief-line) !important; }
+  </style>
+</head>
+<body class="page-with-quick-rail" data-page-component="InvestorBriefingPage">
+  {% include "core/includes/quick_icon_rail.html" %}
+  <header class="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <nav class="brief-wrap mx-auto flex min-h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8" aria-label="Investor briefing navigation">
+      <div class="brief-breadcrumb" aria-label="Breadcrumb">
+        <a href="/">theDetect</a>
+        <span class="brief-breadcrumb-separator" aria-hidden="true">/</span>
+        <span class="brief-breadcrumb-current" aria-current="page">Investor Briefing</span>
+      </div>
+      <div class="flex flex-wrap items-center justify-end gap-2 text-sm">
+        <a href="{{ demo_walkthrough_url }}" class="brief-nav-link rounded-md px-3 py-2 font-semibold">Demo Walkthrough</a>
+        <a href="{{ service_start_url }}" class="rounded-md bg-slate-950 px-3 py-2 font-semibold text-white hover:bg-slate-800">탐지 화면 보기</a>
+        <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle bright and dark mode">
+          <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20.2 15.2A7.4 7.4 0 0 1 8.8 3.8a8.6 8.6 0 1 0 11.4 11.4Z" fill="currentColor"/>
+          </svg>
+          <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="3.5" fill="#f8fafc"/>
+            <path d="M12 2.5v2.6M12 18.9v2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M2.5 12h2.6M18.9 12h2.6M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" stroke="#f8fafc" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="border-b border-slate-200 bg-white">
+      <div class="brief-wrap mx-auto grid gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.05fr_.95fr] lg:px-8 lg:py-14">
+        <div>
+          <p class="text-sm font-black tracking-[.16em] text-blue-700">OBJECT DETECTION AUTOMATION</p>
+          <h1 class="brief-hero-title mt-4 text-slate-950">
+            제품 이미지 데이터를 현장용 AI 모델로 자동 전환해, 새로운 탐지 서비스를 빠르게 출시할 수 있습니다.
+          </h1>
+          <p class="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
+            theDetect는 탐지할 물체를 정의하고, 이미지를 등록·라벨링·보강·학습한 뒤, 스마트폰에서 바로 물체를 찾을 수 있게 만드는 서비스입니다.
+          </p>
+          <div class="mt-7 flex flex-col gap-3 sm:flex-row">
+            <a href="{{ demo_walkthrough_url }}" class="brief-primary">전체 절차 보기</a>
+            <a href="{{ service_start_url }}" class="brief-secondary">탐지 화면 보기</a>
+          </div>
+        </div>
+
+        <aside class="brief-card p-5 sm:p-6" aria-label="현재 탐지 대상">
+          <h2 class="text-lg font-black text-slate-950">현재 탐지 대상</h2>
+          <p class="mt-2 text-sm leading-6 text-slate-600">현재 학습 흐름은 색상별 비누각 3종과 샴푸 케이스 1종을 중심으로 구성되어 있습니다.</p>
+          <div class="mt-5 grid gap-3 sm:grid-cols-2">
+            {% for target_class in target_classes %}
+              <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <span class="brief-icon" aria-hidden="true">{% cycle '□' '▣' '◇' '▱' %}</span>
+                <p class="mt-3 font-black text-slate-950">{{ target_class }}</p>
+              </div>
+            {% endfor %}
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="brief-wrap mx-auto px-4 py-10 sm:px-6 lg:px-8">
+      <h2 class="text-2xl font-black text-slate-950 sm:text-3xl">이 서비스가 보여주는 핵심</h2>
+      <div class="mt-6 grid gap-4 md:grid-cols-3">
+        <article class="brief-card p-5">
+          <span class="brief-icon" aria-hidden="true">◇</span>
+          <h3 class="mt-4 text-lg font-black text-slate-950">사람이 찾을 대상을 먼저 정합니다.</h3>
+          <p class="mt-2 text-base leading-7 text-slate-600">어떤 제품을 구분할지 클래스 목록으로 관리합니다.</p>
+        </article>
+        <article class="brief-card p-5">
+          <span class="brief-icon" aria-hidden="true">▧</span>
+          <h3 class="mt-4 text-lg font-black text-slate-950">이미지 준비부터 학습까지 한 흐름입니다.</h3>
+          <p class="mt-2 text-base leading-7 text-slate-600">등록, 표시, 보강, 학습 데이터 생성, 학습을 순서대로 진행합니다.</p>
+        </article>
+        <article class="brief-card p-5">
+          <span class="brief-icon" aria-hidden="true">▱</span>
+          <h3 class="mt-4 text-lg font-black text-slate-950">스마트폰이 자체적으로 탐지합니다.</h3>
+          <p class="mt-2 text-base leading-7 text-slate-600">모델을 내려받은 뒤 현장에서 스마트폰이 물체 탐지 에뮬레이터가 됩니다.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="bg-white">
+      <div class="brief-wrap mx-auto px-4 py-10 sm:px-6 lg:px-8">
+        <h2 class="text-2xl font-black text-slate-950 sm:text-3xl">실제 서비스 화면으로 증명되는 자동화 절차</h2>
+        <p class="mt-3 max-w-3xl text-base leading-7 text-slate-600">
+          아래 단계는 모두 현재 저장소에 있는 실제 화면으로 연결됩니다. 스마트폰 앱 내부 화면은 웹에서 직접 열 수 없으므로, 배포 패키지 화면과 실제 앱 시연으로 연결합니다.
+        </p>
+        <ol class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5" aria-label="자동화 절차">
+          {% for step in workflow_steps %}
+            <li class="brief-card p-5">
+              <span class="brief-icon" aria-hidden="true">{% cycle '◇' '▧' '⌖' '✦' '▤' '⟳' '◎' '▱' '⬇' '▣' %}</span>
+              <p class="mt-4 text-sm font-black text-blue-700">{{ step.number }}</p>
+              <h3 class="mt-2 text-lg font-black leading-tight text-slate-950">{{ step.title }}</h3>
+              <p class="mt-3 text-sm leading-6 text-slate-600">{{ step.body }}</p>
+              <a href="{{ step.link_url }}" class="mt-4 inline-flex rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
+                {{ step.link_label }}
+              </a>
+            </li>
+          {% endfor %}
+        </ol>
+      </div>
+    </section>
+
+    <section class="brief-wrap mx-auto px-4 py-10 sm:px-6 lg:px-8">
+      <h2 class="text-2xl font-black text-slate-950 sm:text-3xl">기존 작업 방식과 theDetect 방식</h2>
+      <div class="mt-6 grid gap-4 lg:grid-cols-2">
+        <article class="brief-card p-6">
+          <h3 class="text-lg font-black text-slate-950">흩어진 작업 방식</h3>
+          <ul class="mt-4 space-y-3 text-base leading-7 text-slate-600">
+            <li>목표 물체 목록을 따로 정리합니다.</li>
+            <li>이미지와 표시 작업을 다른 도구에서 관리합니다.</li>
+            <li>학습 결과를 스마트폰용으로 옮기는 과정이 끊깁니다.</li>
+            <li>현장 테스트와 기록 확인이 분리됩니다.</li>
+          </ul>
+        </article>
+        <article class="brief-card border-blue-200 bg-blue-50 p-6">
+          <h3 class="text-lg font-black text-slate-950">theDetect 방식</h3>
+          <ul class="mt-4 space-y-3 text-base leading-7 text-slate-700">
+            <li>목표 정의부터 스마트폰 배포까지 한 화면 흐름으로 이어집니다.</li>
+            <li>이미지 등록, 라벨링, 보강, 학습 데이터 생성을 같은 서비스에서 진행합니다.</li>
+            <li>서버에서 먼저 확인한 뒤 스마트폰 모델로 내보냅니다.</li>
+            <li>스마트폰이 현장에서 자체 탐지를 수행하고 기록을 남깁니다.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="bg-slate-950 text-white">
+      <div class="brief-wrap mx-auto px-4 py-10 sm:px-6 lg:px-8">
+        <h2 class="text-2xl font-black sm:text-3xl">투자자가 확인할 포인트</h2>
+        <div class="mt-6 grid gap-4 md:grid-cols-3">
+          <article class="rounded-lg border border-white/15 bg-white/10 p-5">
+            <h3 class="text-xl font-black">반복 가능한 제작 절차</h3>
+            <p class="mt-2 text-base leading-7 text-slate-200">새 물체를 추가해도 같은 순서로 이미지와 모델을 만들 수 있습니다.</p>
+          </article>
+          <article class="rounded-lg border border-white/15 bg-white/10 p-5">
+            <h3 class="text-xl font-black">스마트폰 중심의 현장성</h3>
+            <p class="mt-2 text-base leading-7 text-slate-200">서버 연결이 불안정해도 다운로드된 모델로 현장에서 탐지할 수 있습니다.</p>
+          </article>
+          <article class="rounded-lg border border-white/15 bg-white/10 p-5">
+            <h3 class="text-xl font-black">운영 기록 축적</h3>
+            <p class="mt-2 text-base leading-7 text-slate-200">테스트와 탐지 기록을 남겨 다음 개선 작업의 근거로 활용합니다.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="brief-wrap mx-auto px-4 py-10 sm:px-6 lg:px-8">
+      <div class="brief-card p-6 sm:p-8">
+        <h2 class="text-2xl font-black text-slate-950 sm:text-3xl">시연에서는 전체 자동화 흐름을 순서대로 확인합니다.</h2>
+        <p class="mt-3 max-w-3xl text-base leading-7 text-slate-600">
+          클래스 정의에서 시작해 스마트폰 자체 탐지까지 이어지는 절차가 이 서비스의 핵심입니다. 먼저 시연 절차를 보고, 실제 화면에서 각 단계를 확인합니다.
+        </p>
+        <div class="mt-6 flex flex-col gap-3 sm:flex-row">
+          <a href="{{ demo_walkthrough_url }}" class="brief-primary">시연 절차 보기</a>
+          <a href="{{ service_start_url }}" class="brief-secondary">탐지 화면 보기</a>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script>
+    (function () {
+      function applyTheme(dark) {
+        localStorage.setItem('mdetect-theme', dark ? 'dark' : 'light');
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        document.documentElement.classList.toggle('dark', dark);
+      }
+
+      function currentThemeIsDark() {
+        return document.documentElement.dataset.theme === 'dark';
+      }
+
+      document.querySelectorAll('[data-theme-toggle]').forEach(function (button) {
+        if (button.dataset.themeToggleReady === 'true') {
+          return;
+        }
+        button.dataset.themeToggleReady = 'true';
+        button.addEventListener('click', function () {
+          applyTheme(!currentThemeIsDark());
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

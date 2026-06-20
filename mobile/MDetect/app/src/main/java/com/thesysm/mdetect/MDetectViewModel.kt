@@ -48,6 +48,8 @@ data class AppUiState(
     val authUser: AuthUserState = AuthUserState(),
     val authStatus: String = "Disconnected",
     val authMessage: String = "",
+    val offlineDetectionAllowed: Boolean = false,
+    val loginFailurePromptVisible: Boolean = false,
     val cameraStatusOverlayVisible: Boolean = true
 )
 
@@ -114,6 +116,10 @@ class MDetectViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun navigate(screen: AppScreen) {
+        if (screen == AppScreen.MODEL_UPDATE && _uiState.value.offlineDetectionAllowed) {
+            _uiState.value = _uiState.value.copy(networkStatus = "Model update is disabled in offline detection mode")
+            return
+        }
         _uiState.value = _uiState.value.copy(
             screen = screen,
             modelMetadata = if (screen == AppScreen.MODEL_UPDATE) modelRepository.currentMetadata() else _uiState.value.modelMetadata,
@@ -147,16 +153,39 @@ class MDetectViewModel(application: Application) : AndroidViewModel(application)
                     networkStatus = "Connected",
                     authStatus = "Connected",
                     authMessage = result.getOrThrow(),
+                    offlineDetectionAllowed = false,
+                    loginFailurePromptVisible = false,
                     detectionStatus = "Ready"
                 )
             } else {
                 _uiState.value.copy(
                     networkStatus = "Login failed: ${result.exceptionOrNull()?.message}",
                     authStatus = "Login required",
-                    authMessage = result.exceptionOrNull()?.message ?: "Login failed"
+                    authMessage = result.exceptionOrNull()?.message ?: "Login failed",
+                    offlineDetectionAllowed = false,
+                    loginFailurePromptVisible = true
                 )
             }
         }
+    }
+
+    fun continueAfterLoginFailure() {
+        _uiState.value = _uiState.value.copy(
+            screen = AppScreen.HOME,
+            settings = _uiState.value.settings.copy(detectionMode = DetectionMode.ON_DEVICE),
+            modelMetadata = modelRepository.currentMetadata(),
+            modelFileState = modelRepository.localFileState(),
+            networkStatus = "Offline detection mode",
+            authStatus = "Offline",
+            authMessage = "로그인 실패로 모델 최신버전을 확인할 수 없습니다.",
+            offlineDetectionAllowed = true,
+            loginFailurePromptVisible = false,
+            detectionStatus = "Ready"
+        )
+    }
+
+    fun dismissLoginFailurePrompt() {
+        _uiState.value = _uiState.value.copy(loginFailurePromptVisible = false)
     }
 
     fun signup(username: String, phoneNumber: String, password: String, confirmPassword: String) {
@@ -188,6 +217,8 @@ class MDetectViewModel(application: Application) : AndroidViewModel(application)
                 authUser = AuthUserState(),
                 authStatus = "Login required",
                 authMessage = result.getOrNull().orEmpty(),
+                offlineDetectionAllowed = false,
+                loginFailurePromptVisible = false,
                 networkStatus = result.getOrNull() ?: "Logout failed: ${result.exceptionOrNull()?.message}",
                 detectionStatus = "Login required",
                 detecting = false,
@@ -199,6 +230,10 @@ class MDetectViewModel(application: Application) : AndroidViewModel(application)
 
     fun checkLatestModel() {
         viewModelScope.launch {
+            if (_uiState.value.offlineDetectionAllowed) {
+                _uiState.value = _uiState.value.copy(networkStatus = "Model update is disabled in offline detection mode")
+                return@launch
+            }
             val auth = authRepository.refreshOrLogin()
             if (auth.isFailure) {
                 _uiState.value = _uiState.value.copy(networkStatus = "Login failed: ${auth.exceptionOrNull()?.message}")
@@ -222,6 +257,10 @@ class MDetectViewModel(application: Application) : AndroidViewModel(application)
 
     fun downloadLatestModel() {
         viewModelScope.launch {
+            if (_uiState.value.offlineDetectionAllowed) {
+                _uiState.value = _uiState.value.copy(networkStatus = "Model update is disabled in offline detection mode")
+                return@launch
+            }
             val auth = authRepository.refreshOrLogin()
             if (auth.isFailure) {
                 _uiState.value = _uiState.value.copy(networkStatus = "Login failed: ${auth.exceptionOrNull()?.message}")

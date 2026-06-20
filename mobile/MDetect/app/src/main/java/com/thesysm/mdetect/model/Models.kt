@@ -64,7 +64,7 @@ data class OnDeviceDebugState(
 
 data class AppSettings(
     val serverUrl: String,
-    val detectionMode: DetectionMode = DetectionMode.SERVER,
+    val detectionMode: DetectionMode = DetectionMode.ON_DEVICE,
     val frameIntervalMs: Long = 1000L,
     val confidenceThreshold: Float = 0.5f,
     val iouThreshold: Float = 0.45f,

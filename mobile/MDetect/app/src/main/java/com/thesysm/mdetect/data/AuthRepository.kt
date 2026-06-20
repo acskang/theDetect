@@ -44,6 +44,7 @@ class AuthRepository(
             error(responseError("Login failed", response.code(), response.errorBody()?.string()))
         }
         val body = response.body()!!
+        settingsRepository.saveLoginCredentials(username, password)
         settingsRepository.saveAuthSession(
             access = body.access,
             refresh = body.refresh,

@@ -20,7 +20,6 @@ phone_number
 approval_status
 connected_status
 auth_message
-legacy username/password settings
 ```
 
 After logout:
@@ -28,6 +27,7 @@ After logout:
 - Auth status becomes `Disconnected` or `Login required`.
 - User info is cleared from Home.
 - Welcome message is cleared.
+- The last successful username/password remains saved for the next login form.
 - Detections and history are cleared from current UI state.
 - The app navigates back to the landing screen.
 - Relaunching the app should not restore the previous session because `refresh_token + device_token` are gone.

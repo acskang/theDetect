@@ -38,14 +38,17 @@ class SettingsRepository(private val context: Context) {
     }
 
     val settingsFlow: Flow<AppSettings> = context.dataStore.data.map { prefs ->
+        val detectionMode = runCatching {
+            DetectionMode.valueOf(prefs[Keys.DETECTION_MODE] ?: DetectionMode.ON_DEVICE.name)
+        }.getOrDefault(DetectionMode.ON_DEVICE).takeIf { it == DetectionMode.ON_DEVICE } ?: DetectionMode.ON_DEVICE
         AppSettings(
             serverUrl = prefs[Keys.SERVER_URL] ?: BuildConfig.DEFAULT_SERVER_URL,
-            detectionMode = runCatching { DetectionMode.valueOf(prefs[Keys.DETECTION_MODE] ?: DetectionMode.SERVER.name) }.getOrDefault(DetectionMode.SERVER),
+            detectionMode = detectionMode,
             frameIntervalMs = prefs[Keys.FRAME_INTERVAL] ?: 1000L,
             confidenceThreshold = prefs[Keys.CONFIDENCE] ?: 0.5f,
             iouThreshold = prefs[Keys.IOU] ?: 0.45f,
             username = prefs[Keys.USERNAME] ?: BuildConfig.DEFAULT_USERNAME,
-            password = ""
+            password = prefs[Keys.PASSWORD] ?: BuildConfig.DEFAULT_PASSWORD
         )
     }
 
@@ -89,6 +92,13 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
+    suspend fun saveLoginCredentials(username: String, password: String) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.USERNAME] = username
+            prefs[Keys.PASSWORD] = password
+        }
+    }
+
     suspend fun saveAuthSession(
         access: String,
         refresh: String,
@@ -127,8 +137,6 @@ class SettingsRepository(private val context: Context) {
             prefs.remove(Keys.APPROVAL_STATUS)
             prefs.remove(Keys.CONNECTED)
             prefs.remove(Keys.AUTH_MESSAGE)
-            prefs.remove(Keys.USERNAME)
-            prefs.remove(Keys.PASSWORD)
             if (message.isNotBlank()) prefs[Keys.AUTH_MESSAGE] = message
         }
     }

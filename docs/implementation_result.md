@@ -7,7 +7,7 @@ Date: 2026-06-14
 ### Summary
 - Added local Android logout through Home and Settings.
 - Added a confirmation dialog before clearing session state.
-- Clears access token, refresh token, device token, user id, username, phone number, approval status, connected state, welcome message, and legacy username/password values from DataStore.
+- Clears access token, refresh token, device token, user id, username, phone number, approval status, connected state, and welcome message from DataStore. The last successful username/password remains saved for the next login form.
 - Logout returns the app to the landing screen with disconnected/login-required state.
 - Documented that server-side token blacklist and device-token revoke are not part of Step 24.
 

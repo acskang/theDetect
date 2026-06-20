@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo Walkthrough | theDetect Object Detection</title>
+  <script>
+    (function () {
+      const stored = localStorage.getItem('mdetect-theme');
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const dark = stored ? stored === 'dark' : prefersDark;
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      document.documentElement.classList.toggle('dark', dark);
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --demo-bg: #f8fafc;
+      --demo-panel: #ffffff;
+      --demo-ink: #0f172a;
+      --demo-muted: #475569;
+      --demo-line: #e2e8f0;
+      --demo-blue: #2563eb;
+      --demo-blue-dark: #1d4ed8;
+      --demo-soft: #eff6ff;
+    }
+    [data-theme="dark"] {
+      color-scheme: dark;
+      --demo-bg: #0f172a;
+      --demo-panel: #111827;
+      --demo-ink: #e5e7eb;
+      --demo-muted: #94a3b8;
+      --demo-line: #243244;
+      --demo-blue: #60a5fa;
+      --demo-blue-dark: #3b82f6;
+      --demo-soft: #172554;
+    }
+    body {
+      background: var(--demo-bg);
+      color: var(--demo-ink);
+      font-family: Pretendard, Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .page-with-quick-rail { padding-left: 3.75rem; }
+    .quick-icon-rail {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 40;
+      display: flex;
+      width: 3.75rem;
+      flex-direction: column;
+      align-items: center;
+      gap: .375rem;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      background: #020617;
+      padding: .875rem .5rem;
+      color: #cbd5e1;
+    }
+    .quick-icon-link {
+      display: inline-flex;
+      width: 2.5rem;
+      height: 2.5rem;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      color: #cbd5e1;
+      font-size: 1rem;
+      line-height: 1;
+      text-decoration: none;
+    }
+    .quick-icon-link:hover,
+    .quick-icon-link:focus-visible {
+      background: rgba(255, 255, 255, .10);
+      color: #fff;
+      outline: none;
+    }
+    .quick-icon-link:focus-visible {
+      box-shadow: inset 0 0 0 2px rgba(96, 165, 250, .8);
+    }
+    @media (max-width: 767px) {
+      .page-with-quick-rail { padding-left: 0; }
+      .quick-icon-rail { display: none; }
+    }
+    .demo-wrap { max-width: 1180px; }
+    .demo-breadcrumb {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: .5rem;
+      font-size: 1.125rem;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+    .demo-breadcrumb a {
+      color: #64748b;
+      text-decoration: none;
+    }
+    .demo-breadcrumb a:hover,
+    .demo-breadcrumb a:focus-visible {
+      color: var(--demo-blue);
+      outline: none;
+    }
+    .demo-breadcrumb-separator {
+      color: #94a3b8;
+      flex: 0 0 auto;
+    }
+    .demo-breadcrumb-current {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #0f172a;
+    }
+    .demo-hero-title {
+      max-width: 40rem;
+      font-size: 1.875rem;
+      font-weight: 800;
+      line-height: 1.42;
+      letter-spacing: .02em;
+      word-break: keep-all;
+      overflow-wrap: break-word;
+    }
+    @media (min-width: 640px) {
+      .demo-hero-title { font-size: 2.125rem; line-height: 1.38; }
+    }
+    @media (min-width: 1024px) {
+      .demo-hero-title { font-size: 2.25rem; line-height: 1.36; }
+    }
+    .demo-card {
+      border: 1px solid var(--demo-line);
+      border-radius: 8px;
+      background: var(--demo-panel);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+    }
+    .demo-primary,
+    .demo-secondary {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      padding: 0 18px;
+      font-weight: 800;
+    }
+    .demo-primary {
+      border: 1px solid rgba(96, 165, 250, .30);
+      background: linear-gradient(180deg, #1e3a5f 0%, #172554 100%);
+      color: #eaf2ff;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
+    }
+    .demo-primary:hover,
+    .demo-primary:focus-visible {
+      border-color: rgba(147, 197, 253, .50);
+      background: linear-gradient(180deg, #244a74 0%, #1e3a5f 100%);
+      color: #fff;
+      outline: none;
+    }
+    .demo-secondary {
+      border: 1px solid var(--demo-line);
+      background: var(--demo-panel);
+      color: var(--demo-ink);
+    }
+    .demo-nav-link {
+      color: #334155;
+      background: transparent;
+    }
+    .demo-nav-link:hover,
+    .demo-nav-link:focus-visible {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+    .demo-accent-label {
+      color: #475569;
+      letter-spacing: .12em;
+    }
+    .demo-step-label {
+      color: #64748b;
+    }
+    .demo-text-link {
+      color: #334155;
+      text-decoration: none;
+    }
+    .demo-text-link:hover,
+    .demo-text-link:focus-visible {
+      color: #0f172a;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      outline: none;
+    }
+    .demo-link-table {
+      overflow: hidden;
+      border: 1px solid var(--demo-line);
+      border-radius: 8px;
+      background: var(--demo-panel);
+    }
+    .demo-link-table table {
+      border-collapse: separate;
+      border-spacing: 0;
+      width: 100%;
+    }
+    .demo-link-table thead {
+      background: rgba(15, 23, 42, .04);
+      color: #64748b;
+    }
+    .demo-link-table th {
+      padding: 14px 18px;
+      font-size: .75rem;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .demo-link-table tbody tr {
+      background: transparent;
+    }
+    .demo-link-table tbody tr + tr td {
+      border-top: 1px solid var(--demo-line);
+    }
+    .demo-link-table td {
+      padding: 16px 18px;
+      vertical-align: middle;
+    }
+    .demo-link-step {
+      color: var(--demo-ink);
+      font-weight: 800;
+      line-height: 1.5;
+    }
+    .demo-link-action {
+      display: inline-flex;
+      min-height: 34px;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(100, 116, 139, .28);
+      border-radius: 8px;
+      background: rgba(15, 23, 42, .04);
+      color: #334155;
+      padding: 0 12px;
+      font-size: .875rem;
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .demo-link-action:hover,
+    .demo-link-action:focus-visible {
+      border-color: rgba(51, 65, 85, .42);
+      background: rgba(15, 23, 42, .08);
+      color: #0f172a;
+      outline: none;
+    }
+    @media (max-width: 767px) {
+      .demo-link-table table,
+      .demo-link-table thead,
+      .demo-link-table tbody,
+      .demo-link-table tr,
+      .demo-link-table th,
+      .demo-link-table td {
+        display: block;
+      }
+      .demo-link-table thead { display: none; }
+      .demo-link-table td { padding: 12px 14px; }
+      .demo-link-table td + td { padding-top: 0; }
+    }
+    .demo-icon {
+      display: inline-flex;
+      width: 44px;
+      height: 44px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      border: 1px solid rgba(37, 99, 235, .22);
+      background: linear-gradient(145deg, rgba(37, 99, 235, .12), rgba(20, 184, 166, .08));
+      color: #1d4ed8;
+      font-size: 20px;
+      font-weight: 900;
+      line-height: 1;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45);
+      flex: 0 0 auto;
+    }
+    .theme-toggle {
+      display: inline-flex;
+      min-height: 36px;
+      width: 36px;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--demo-line);
+      border-radius: 8px;
+      background: var(--demo-panel);
+      color: var(--demo-ink);
+      font-weight: 900;
+    }
+    .theme-icon { width: 18px; height: 18px; display: block; }
+    .theme-icon-moon { color: #facc15; }
+    .theme-icon-sun { color: #f8fafc; }
+    [data-theme="light"] .theme-icon-sun { display: none; }
+    [data-theme="dark"] .theme-icon-moon { display: none; }
+    [data-theme="dark"] .theme-toggle { background: #0b1220; border: 0; box-shadow: none; }
+    [data-theme="dark"] body,
+    [data-theme="dark"] .bg-white { background: var(--demo-bg) !important; color: var(--demo-ink) !important; }
+    [data-theme="dark"] header.bg-white\/95 { background: rgba(15, 23, 42, .94) !important; }
+    [data-theme="dark"] .demo-card,
+    [data-theme="dark"] .bg-slate-50,
+    [data-theme="dark"] .bg-blue-50 { background: var(--demo-panel) !important; border-color: var(--demo-line) !important; }
+    [data-theme="dark"] .text-slate-950,
+    [data-theme="dark"] .text-slate-900,
+    [data-theme="dark"] .text-slate-800,
+    [data-theme="dark"] .text-slate-700 { color: var(--demo-ink) !important; }
+    [data-theme="dark"] .text-slate-600,
+    [data-theme="dark"] .text-slate-500 { color: var(--demo-muted) !important; }
+    [data-theme="dark"] .border-slate-200,
+    [data-theme="dark"] .border-slate-300,
+    [data-theme="dark"] .border-blue-200 { border-color: var(--demo-line) !important; }
+    [data-theme="dark"] .bg-slate-950 { background: #020617 !important; }
+    [data-theme="dark"] .demo-nav-link { color: #e5e7eb !important; }
+    [data-theme="dark"] .demo-nav-link:hover,
+    [data-theme="dark"] .demo-nav-link:focus-visible {
+      background: #243244 !important;
+      color: #ffffff !important;
+    }
+    [data-theme="dark"] .demo-breadcrumb a { color: #94a3b8; }
+    [data-theme="dark"] .demo-breadcrumb a:hover,
+    [data-theme="dark"] .demo-breadcrumb a:focus-visible { color: #bfdbfe; }
+    [data-theme="dark"] .demo-breadcrumb-current { color: var(--demo-ink); }
+    [data-theme="dark"] .demo-accent-label,
+    [data-theme="dark"] .demo-step-label {
+      color: #93a4b8;
+    }
+    [data-theme="dark"] .demo-text-link {
+      color: #cbd5e1;
+    }
+    [data-theme="dark"] .demo-text-link:hover,
+    [data-theme="dark"] .demo-text-link:focus-visible {
+      color: #ffffff;
+    }
+    [data-theme="dark"] .demo-link-table {
+      background: #111827;
+      border-color: var(--demo-line);
+    }
+    [data-theme="dark"] .demo-link-table thead {
+      background: rgba(148, 163, 184, .06);
+      color: #93a4b8;
+    }
+    [data-theme="dark"] .demo-link-table tbody tr + tr td {
+      border-color: rgba(148, 163, 184, .18);
+    }
+    [data-theme="dark"] .demo-link-step {
+      color: var(--demo-ink);
+    }
+    [data-theme="dark"] .demo-link-action {
+      border-color: rgba(148, 163, 184, .22);
+      background: rgba(148, 163, 184, .08);
+      color: #dbeafe;
+    }
+    [data-theme="dark"] .demo-link-action:hover,
+    [data-theme="dark"] .demo-link-action:focus-visible {
+      border-color: rgba(147, 197, 253, .42);
+      background: rgba(96, 165, 250, .12);
+      color: #ffffff;
+    }
+    [data-theme="dark"] .demo-primary {
+      border-color: rgba(96, 165, 250, .28);
+      background: linear-gradient(180deg, rgba(30, 58, 95, .96), rgba(23, 37, 84, .96));
+      color: #dbeafe;
+    }
+    [data-theme="dark"] .demo-primary:hover,
+    [data-theme="dark"] .demo-primary:focus-visible {
+      border-color: rgba(147, 197, 253, .56);
+      background: linear-gradient(180deg, rgba(37, 78, 121, .98), rgba(30, 58, 95, .98));
+      color: #fff;
+    }
+    [data-theme="dark"] .demo-icon {
+      border-color: rgba(96, 165, 250, .24);
+      background: linear-gradient(145deg, rgba(30, 64, 175, .22), rgba(15, 118, 110, .14));
+      color: #93c5fd;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+    }
+    [data-theme="dark"] .demo-secondary,
+    [data-theme="dark"] a.bg-white { background: #111827 !important; color: var(--demo-ink) !important; border-color: var(--demo-line) !important; }
+    .demo-step-grid {
+      display: grid;
+      grid-template-columns: minmax(0, .78fr) minmax(0, 1fr);
+      gap: 14px;
+    }
+    @media (max-width: 767px) {
+      .demo-step-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body class="page-with-quick-rail" data-page-component="DemoWalkthroughPage">
+  {% include "core/includes/quick_icon_rail.html" %}
+  <header class="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <nav class="demo-wrap mx-auto flex min-h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8" aria-label="Demo walkthrough navigation">
+      <div class="demo-breadcrumb" aria-label="Breadcrumb">
+        <a href="/">theDetect</a>
+        <span class="demo-breadcrumb-separator" aria-hidden="true">/</span>
+        <span class="demo-breadcrumb-current" aria-current="page">Demo Walkthrough</span>
+      </div>
+      <div class="flex flex-wrap items-center justify-end gap-2 text-sm">
+        <a href="{{ investor_briefing_url }}" class="demo-nav-link rounded-md px-3 py-2 font-semibold">Investor Briefing</a>
+        <a href="{{ service_start_url }}" class="rounded-md bg-slate-950 px-3 py-2 font-semibold text-white hover:bg-slate-800">실제 시연 시작</a>
+        <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle bright and dark mode">
+          <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20.2 15.2A7.4 7.4 0 0 1 8.8 3.8a8.6 8.6 0 1 0 11.4 11.4Z" fill="currentColor"/>
+          </svg>
+          <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="3.5" fill="#f8fafc"/>
+            <path d="M12 2.5v2.6M12 18.9v2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M2.5 12h2.6M18.9 12h2.6M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" stroke="#f8fafc" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="border-b border-slate-200 bg-white">
+      <div class="demo-wrap mx-auto grid gap-7 px-4 py-10 sm:px-6 lg:grid-cols-[1.08fr_.92fr] lg:px-8 lg:py-14">
+        <div>
+          <p class="demo-accent-label text-sm font-black tracking-[.16em]">DEMO WALKTHROUGH</p>
+          <h1 class="demo-hero-title mt-4 text-slate-950">
+            시연은 제품 탐지 모델이 만들어지고 스마트폰에서 동작하는 순서로 진행됩니다.
+          </h1>
+          <p class="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
+            탐지 목표 정의부터 이미지 준비, 학습, 서버 사전 테스트, 스마트폰 자체 탐지까지 전체 흐름을 먼저 살펴보겠습니다.
+          </p>
+          <div class="mt-7 flex flex-col gap-3 sm:flex-row">
+            <a href="{{ service_start_url }}" class="demo-primary">시연 시작</a>
+            <a href="{{ investor_briefing_url }}" class="demo-secondary">서비스 설명 다시 보기</a>
+          </div>
+        </div>
+
+        <aside class="demo-card p-5 sm:p-6" aria-label="전체 시연 흐름">
+          <h2 class="text-lg font-black text-slate-950">전체 흐름</h2>
+          <ol class="mt-4 space-y-3">
+            {% for item in flow_items %}
+              <li class="flex items-center gap-3">
+                <span class="demo-icon text-base" aria-hidden="true">{% cycle '◇' '▧' '⌖' '⟳' '▱' %}</span>
+                <span class="text-lg font-black text-slate-950">{{ item }}</span>
+              </li>
+            {% endfor %}
+          </ol>
+          <p class="mt-5 rounded-lg bg-slate-50 p-4 text-base font-bold text-slate-700">
+            목표 정의 → 이미지 준비 → 라벨링과 보강 → 학습과 사전 테스트 → 스마트폰 자체 탐지
+          </p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="demo-wrap mx-auto px-4 py-8 sm:px-6 lg:px-8">
+      <article class="demo-card border-blue-200 bg-blue-50 p-6">
+        <p class="demo-accent-label text-sm font-black">발표 시작 멘트</p>
+        <blockquote class="mt-3 text-xl font-bold leading-9 text-slate-950">
+          “지금부터 비누각과 샴푸 케이스를 찾는 모델이 만들어지고, 스마트폰에서 자체 탐지로 이어지는 과정을 보여드리겠습니다. 복잡한 기술보다 절차가 반복 가능한지, 실제 화면으로 증명되는지, 현장에서 바로 쓸 수 있는지를 봐주시면 됩니다.”
+        </blockquote>
+      </article>
+    </section>
+
+    <section class="bg-white">
+      <div class="demo-wrap mx-auto px-4 py-9 sm:px-6 lg:px-8">
+        <h2 class="text-2xl font-black text-slate-950 sm:text-3xl">시연 중에는 이 세 가지만 확인해 주세요.</h2>
+        <div class="mt-6 grid gap-4 md:grid-cols-3">
+          {% for focus in viewer_focus %}
+            <article class="demo-card p-5">
+              <span class="demo-icon" aria-hidden="true">{% cycle '▣' '◎' '✦' %}</span>
+              <h3 class="mt-4 text-lg font-black text-slate-950">{{ focus.title }}</h3>
+              <p class="mt-2 text-base leading-7 text-slate-600">{{ focus.body }}</p>
+            </article>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="demo-wrap mx-auto px-4 py-9 sm:px-6 lg:px-8">
+      <h2 class="text-2xl font-black text-slate-950 sm:text-3xl">전체 시연은 다섯 단계입니다.</h2>
+      <ol class="mt-6 space-y-5" aria-label="전체 시연 단계">
+        {% for step in demo_steps %}
+          <li>
+            <article class="demo-card p-5 sm:p-6">
+              <div class="demo-step-grid">
+                <div>
+                  <p class="demo-step-label text-sm font-black">{{ step.number }}</p>
+                  <div class="mt-3 flex items-start gap-3">
+                    <span class="demo-icon" aria-hidden="true">{{ step.icon }}</span>
+                    <h3 class="text-2xl font-black leading-tight text-slate-950">{{ step.title }}</h3>
+                  </div>
+                  {% if step.link_url %}
+                    <a href="{{ step.link_url }}" class="mt-5 inline-flex rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
+                      {{ step.link_label }}
+                    </a>
+                  {% else %}
+                    <p class="mt-5 inline-flex rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-500">
+                      시연 설명
+                    </p>
+                  {% endif %}
+                </div>
+                <div class="grid gap-3">
+                  <div class="rounded-lg bg-slate-50 p-4">
+                    <p class="text-sm font-black text-slate-500">발표자가 하는 행동</p>
+                    <p class="mt-1 text-base font-semibold text-slate-900">{{ step.action }}</p>
+                  </div>
+                  <div class="rounded-lg bg-slate-50 p-4">
+                    <p class="text-sm font-black text-slate-500">관객이 보는 결과</p>
+                    <p class="mt-1 text-base font-semibold text-slate-900">{{ step.result }}</p>
+                  </div>
+                  <div class="rounded-lg bg-slate-50 p-4">
+                    <p class="text-sm font-black text-slate-500">보여주는 가치</p>
+                    <p class="mt-1 text-base font-semibold text-slate-900">{{ step.value }}</p>
+                  </div>
+                  {% if step.note %}
+                    <p class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">{{ step.note }}</p>
+                  {% endif %}
+                </div>
+              </div>
+            </article>
+          </li>
+        {% endfor %}
+      </ol>
+    </section>
+
+    <section class="bg-slate-950 text-white">
+      <div class="demo-wrap mx-auto px-4 py-9 sm:px-6 lg:px-8">
+        <h2 class="text-2xl font-black sm:text-3xl">전체 흐름 요약</h2>
+        <ol class="mt-6 grid gap-3 md:grid-cols-5" aria-label="시연 흐름 요약">
+          <li class="rounded-lg border border-white/15 bg-white/10 p-4 text-lg font-black">목표 물체 정의</li>
+          <li class="rounded-lg border border-white/15 bg-white/10 p-4 text-lg font-black">이미지 준비</li>
+          <li class="rounded-lg border border-white/15 bg-white/10 p-4 text-lg font-black">라벨링과 보강</li>
+          <li class="rounded-lg border border-white/15 bg-white/10 p-4 text-lg font-black">학습과 사전 테스트</li>
+          <li class="rounded-lg border border-white/15 bg-white/10 p-4 text-lg font-black">스마트폰 자체 탐지</li>
+        </ol>
+        <p class="mt-5 max-w-3xl text-lg leading-8 text-slate-200">
+          이 서비스의 핵심은 물체를 찾는 기능 하나가 아니라, 목표 정의부터 스마트폰 배포까지 이어지는 전체 제작 절차입니다.
+        </p>
+      </div>
+    </section>
+
+    <section class="demo-wrap mx-auto px-4 py-9 sm:px-6 lg:px-8">
+      <h2 class="text-2xl font-black text-slate-950 sm:text-3xl">단계별 실제 화면 연결</h2>
+      <div class="demo-link-table mt-6">
+        <table class="text-left text-sm">
+          <thead>
+            <tr>
+              <th>단계</th>
+              <th>연결 상태</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for step in demo_steps %}
+              <tr>
+                <td class="demo-link-step">{{ step.number }} {{ step.title }}</td>
+                <td>
+                  {% if step.link_url %}
+                    <a href="{{ step.link_url }}" class="demo-link-action">{{ step.link_label }}</a>
+                  {% else %}
+                    <span class="font-semibold text-slate-500">시연 중 결과 화면에서 설명</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="demo-wrap mx-auto px-4 pb-10 sm:px-6 lg:px-8">
+      <article class="demo-card p-6">
+        <p class="demo-accent-label text-sm font-black">시연 종료 멘트</p>
+        <blockquote class="mt-3 text-xl font-bold leading-9 text-slate-950">
+          “방금 보신 것처럼 목표 물체를 정하고, 이미지를 준비하고, 학습한 뒤, 스마트폰에서 바로 탐지하는 흐름까지 한 서비스 안에서 이어집니다. 투자 관점에서는 이 같은 절차를 더 많은 제품군에 반복 적용할 수 있다는 점이 중요합니다.”
+        </blockquote>
+      </article>
+
+      <section class="demo-card mt-6 bg-white p-6 sm:p-8">
+        <h2 class="text-2xl font-black text-slate-950 sm:text-3xl">이제 실제 화면에서 같은 순서를 확인하겠습니다.</h2>
+        <p class="mt-3 max-w-2xl text-lg leading-8 text-slate-600">첫 단계인 탐지 목표 확인 화면에서 시연을 시작합니다.</p>
+        <div class="mt-6 flex flex-col gap-3 sm:flex-row">
+          <a href="{{ service_start_url }}" class="demo-primary">실제 시연 시작</a>
+          <a href="{{ investor_briefing_url }}" class="demo-secondary">Investor Briefing</a>
+        </div>
+      </section>
+    </section>
+  </main>
+  <script>
+    (function () {
+      function applyTheme(dark) {
+        localStorage.setItem('mdetect-theme', dark ? 'dark' : 'light');
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        document.documentElement.classList.toggle('dark', dark);
+      }
+
+      function currentThemeIsDark() {
+        return document.documentElement.dataset.theme === 'dark';
+      }
+
+      document.querySelectorAll('[data-theme-toggle]').forEach(function (button) {
+        if (button.dataset.themeToggleReady === 'true') {
+          return;
+        }
+        button.dataset.themeToggleReady = 'true';
+        button.addEventListener('click', function () {
+          applyTheme(!currentThemeIsDark());
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

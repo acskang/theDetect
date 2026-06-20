@@ -49,6 +49,62 @@
     .landing-accent { color: var(--landing-accent); }
     .landing-field { background: var(--landing-field); border-color: var(--landing-border); color: var(--landing-text); }
     .animated-conveyor { background: var(--landing-bg); }
+    .landing-quick-rail {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 30;
+      display: flex;
+      width: 3.75rem;
+      flex-direction: column;
+      align-items: center;
+      gap: .375rem;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      background: #020617;
+      padding: .875rem .5rem;
+      color: #cbd5e1;
+    }
+    .landing-quick-link {
+      display: inline-flex;
+      width: 2.5rem;
+      height: 2.5rem;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      color: #cbd5e1;
+      font-size: 1rem;
+      line-height: 1;
+      text-decoration: none;
+    }
+    .landing-quick-link:hover,
+    .landing-quick-link:focus-visible {
+      background: rgba(255, 255, 255, .10);
+      color: #fff;
+      outline: none;
+    }
+    .landing-quick-link:focus-visible {
+      box-shadow: inset 0 0 0 2px rgba(96, 165, 250, .8);
+    }
+    .landing-with-rail {
+      padding-left: 3.75rem;
+    }
+    @media (max-width: 767px) {
+      .landing-quick-rail { display: none; }
+      .landing-with-rail { padding-left: 0; }
+    }
+    .workflow-card {
+      display: block;
+      color: inherit;
+      text-decoration: none;
+      transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+    }
+    .workflow-card:hover,
+    .workflow-card:focus-visible {
+      transform: translateY(-2px);
+      border-color: var(--landing-sage);
+      box-shadow: 0 14px 28px rgba(15, 23, 42, .14);
+      outline: none;
+    }
     .conveyor-stage {
       position: relative;
       display: grid;
@@ -482,10 +538,58 @@
     [data-theme="light"] .theme-icon-sun { display: none; }
     [data-theme="dark"] .theme-icon-moon { display: none; }
     [data-theme="dark"] .theme-toggle { background: #0b1220; border: 0; box-shadow: none; }
+    .thesysm-link {
+      display: inline-flex;
+      width: 36px;
+      height: 36px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      background: var(--landing-card);
+      border: 1px solid var(--landing-border);
+      overflow: hidden;
+    }
+    .thesysm-link:hover,
+    .thesysm-link:focus-visible {
+      border-color: var(--landing-sage);
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, .18);
+      outline: none;
+    }
+    .thesysm-link img {
+      width: 26px;
+      height: 26px;
+      object-fit: contain;
+      display: block;
+    }
+    [data-theme="dark"] .thesysm-link { background: #0b1220; border: 0; }
   </style>
 </head>
 <body class="min-h-full">
-  <main class="relative min-h-screen overflow-hidden">
+  <nav class="landing-quick-rail" aria-label="빠른 화면 이동">
+    <a href="{% if request.user.is_authenticated %}{% url 'core:investor_briefing' %}{% else %}{% url 'login' %}?next={% url 'core:investor_briefing' %}{% endif %}" class="landing-quick-link" aria-label="Investor Briefing으로 이동" title="Investor Briefing"><span aria-hidden="true">▣</span></a>
+    <a href="{% if request.user.is_authenticated %}{% url 'core:demo_walkthrough' %}{% else %}{% url 'login' %}?next={% url 'core:demo_walkthrough' %}{% endif %}" class="landing-quick-link" aria-label="Demo Walkthrough로 이동" title="Demo Walkthrough"><span aria-hidden="true">▶</span></a>
+    <a href="{% if request.user.is_authenticated %}{% url 'core:dashboard' %}{% else %}{% url 'login' %}?next={% url 'core:dashboard' %}{% endif %}" class="landing-quick-link" aria-label="Dashboard로 이동" title="Dashboard"><span aria-hidden="true">▦</span></a>
+    <a href="{% if request.user.is_authenticated %}{% url 'core:project_settings' %}{% else %}{% url 'login' %}?next={% url 'core:project_settings' %}{% endif %}" class="landing-quick-link" aria-label="Project Settings로 이동" title="Project Settings"><span aria-hidden="true">⚙</span></a>
+    <a href="{% if request.user.is_authenticated %}{% url 'datasets:object_class_list' %}{% else %}{% url 'login' %}?next={% url 'datasets:object_class_list' %}{% endif %}" class="landing-quick-link" aria-label="Object Classes로 이동" title="Object Classes"><span aria-hidden="true">◇</span></a>
+    <a href="{% if request.user.is_authenticated %}{% url 'datasets:image_list' %}{% else %}{% url 'login' %}?next={% url 'datasets:image_list' %}{% endif %}" class="landing-quick-link" aria-label="Image Dataset으로 이동" title="Image Dataset"><span aria-hidden="true">▧</span></a>
+    <a href="{% if request.user.is_authenticated %}{% url 'labeling:workspace' %}{% else %}{% url 'login' %}?next={% url 'labeling:workspace' %}{% endif %}" class="landing-quick-link" aria-label="Labeling Workspace로 이동" title="Labeling Workspace"><span aria-hidden="true">⌖</span></a>
+    <a href="{% if request.user.is_authenticated %}{% url 'datasets:dataset_build' %}{% else %}{% url 'login' %}?next={% url 'datasets:dataset_build' %}{% endif %}" class="landing-quick-link" aria-label="Dataset Build로 이동" title="Dataset Build"><span aria-hidden="true">▤</span></a>
+    <a href="{% if request.user.is_authenticated %}{% url 'datasets:augmented_dataset_build' %}{% else %}{% url 'login' %}?next={% url 'datasets:augmented_dataset_build' %}{% endif %}" class="landing-quick-link" aria-label="Augmented Dataset Build로 이동" title="Aug' Dataset Build"><span aria-hidden="true">✦</span></a>
+    <a href="{% if request.user.is_authenticated %}{% url 'datasets:dataset_version_list' %}{% else %}{% url 'login' %}?next={% url 'datasets:dataset_version_list' %}{% endif %}" class="landing-quick-link" aria-label="Dataset Versions로 이동" title="Dataset Versions"><span aria-hidden="true">▥</span></a>
+    <a href="{% if request.user.is_authenticated %}{% url 'training:job_list' %}{% else %}{% url 'login' %}?next={% url 'training:job_list' %}{% endif %}" class="landing-quick-link" aria-label="Training Jobs로 이동" title="Training Jobs"><span aria-hidden="true">⟳</span></a>
+    <a href="{% if request.user.is_authenticated %}{% url 'models_registry:registry' %}{% else %}{% url 'login' %}?next={% url 'models_registry:registry' %}{% endif %}" class="landing-quick-link" aria-label="Model Registry로 이동" title="Model Registry"><span aria-hidden="true">◉</span></a>
+    <a href="{% if request.user.is_authenticated %}{% url 'deployment:android_export' %}{% else %}{% url 'login' %}?next={% url 'deployment:android_export' %}{% endif %}" class="landing-quick-link" aria-label="Android Model Export로 이동" title="Android Model Export"><span aria-hidden="true">▱</span></a>
+    <a href="{% if request.user.is_authenticated %}{% url 'deployment:package_list' %}{% else %}{% url 'login' %}?next={% url 'deployment:package_list' %}{% endif %}" class="landing-quick-link" aria-label="Model Deployment로 이동" title="Model Deployment"><span aria-hidden="true">⬇</span></a>
+    <a href="{% if request.user.is_authenticated %}{% url 'core:server_detection' %}{% else %}{% url 'login' %}?next={% url 'core:server_detection' %}{% endif %}" class="landing-quick-link" aria-label="Server Detection으로 이동" title="Server Detection"><span aria-hidden="true">◎</span></a>
+    <a href="{% if request.user.is_authenticated %}{% url 'core:detection_logs' %}{% else %}{% url 'login' %}?next={% url 'core:detection_logs' %}{% endif %}" class="landing-quick-link" aria-label="Detection Logs로 이동" title="Detection Logs"><span aria-hidden="true">☷</span></a>
+    <a href="{% if request.user.is_authenticated %}{% url 'core:review_queue' %}{% else %}{% url 'login' %}?next={% url 'core:review_queue' %}{% endif %}" class="landing-quick-link" aria-label="Review Queue로 이동" title="Review Queue"><span aria-hidden="true">☑</span></a>
+    <a href="{% if request.user.is_authenticated %}{% url 'core:api_test' %}{% else %}{% url 'login' %}?next={% url 'core:api_test' %}{% endif %}" class="landing-quick-link" aria-label="API Test로 이동" title="API Test"><span aria-hidden="true">⇄</span></a>
+    <a href="{% if request.user.is_authenticated %}{% url 'core:manual' %}{% else %}{% url 'login' %}?next={% url 'core:manual' %}{% endif %}" class="landing-quick-link" aria-label="Manual로 이동" title="Manual"><span aria-hidden="true">?</span></a>
+    {% if request.user.is_staff %}
+      <a href="{% url 'admin:index' %}" class="landing-quick-link" aria-label="Django Admin으로 이동" title="Django Admin"><span aria-hidden="true">★</span></a>
+    {% endif %}
+  </nav>
+  <main class="landing-with-rail relative min-h-screen overflow-hidden">
     <div class="landing-top absolute inset-x-0 top-0 h-56"></div>
     <section class="relative mx-auto grid min-h-screen max-w-7xl items-center gap-10 px-6 py-10 lg:grid-cols-1 lg:px-10">
       <div>
@@ -517,6 +621,13 @@
                 <path d="M12 2.5v2.6M12 18.9v2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M2.5 12h2.6M18.9 12h2.6M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" stroke="#f8fafc" stroke-width="1.8" stroke-linecap="round"/>
               </svg>
             </button>
+            <a
+              href="https://www.thesysm.com"
+              class="thesysm-link shrink-0"
+              aria-label="theSysm 홈페이지로 이동"
+            >
+              <img src="{% static 'img/thesysm-logo.png' %}" alt="theSysm">
+            </a>
           </div>
         </div>
 
@@ -538,7 +649,7 @@
           <p class="landing-accent text-sm font-black">작업 절차</p>
           <p class="landing-muted mt-2 max-w-2xl text-sm leading-6">이미지 업로드부터 스마트폰 적용까지, theDetect의 객체탐지 모델 제작 흐름입니다.</p>
           <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <article class="landing-soft rounded-2xl border p-4 shadow-sm">
+            <a href="{% url 'datasets:image_upload' %}" class="workflow-card landing-soft rounded-2xl border p-4 shadow-sm" aria-label="STEP 01 이미지 준비 화면으로 이동">
               <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-blue-300/20 bg-blue-500/10 text-blue-300">
                 <svg class="h-7 w-7 stroke-current" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <rect x="3.5" y="6" width="17" height="13" rx="2.5"></rect>
@@ -550,8 +661,8 @@
               <p class="landing-muted text-xs font-black">STEP 01</p>
               <h3 class="mt-2 text-lg font-black">이미지 준비</h3>
               <p class="landing-muted mt-2 text-sm leading-6">클래스별 객체 이미지를 업로드합니다.</p>
-            </article>
-            <article class="landing-soft rounded-2xl border p-4 shadow-sm">
+            </a>
+            <a href="{% url 'labeling:workspace' %}" class="workflow-card landing-soft rounded-2xl border p-4 shadow-sm" aria-label="STEP 02 B-Box 라벨링 화면으로 이동">
               <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-500/10 text-cyan-300">
                 <svg class="h-7 w-7 stroke-current" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <rect x="5" y="5" width="14" height="14" rx="1.5" stroke-dasharray="4 3"></rect>
@@ -564,8 +675,8 @@
               <p class="landing-muted text-xs font-black">STEP 02</p>
               <h3 class="mt-2 text-lg font-black">B-Box 라벨링</h3>
               <p class="landing-muted mt-2 text-sm leading-6">객체 전체를 Bounding Box로 지정합니다.</p>
-            </article>
-            <article class="landing-soft rounded-2xl border p-4 shadow-sm">
+            </a>
+            <a href="{% url 'datasets:dataset_build' %}" class="workflow-card landing-soft rounded-2xl border p-4 shadow-sm" aria-label="STEP 03 데이터셋 제작 화면으로 이동">
               <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-indigo-300/20 bg-indigo-500/10 text-indigo-300">
                 <svg class="h-7 w-7 stroke-current" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M4 7.5h6l1.6 2H20v7.7A2.3 2.3 0 0 1 17.7 19H6.3A2.3 2.3 0 0 1 4 16.7Z"></path>
@@ -577,8 +688,8 @@
               <p class="landing-muted text-xs font-black">STEP 03</p>
               <h3 class="mt-2 text-lg font-black">데이터셋 제작</h3>
               <p class="landing-muted mt-2 text-sm leading-6">YOLO 학습용 DatasetVersion을 생성합니다.</p>
-            </article>
-            <article class="landing-soft rounded-2xl border p-4 shadow-sm">
+            </a>
+            <a href="{% url 'training:job_list' %}" class="workflow-card landing-soft rounded-2xl border p-4 shadow-sm" aria-label="STEP 04 학습 모델 생성 화면으로 이동">
               <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-violet-300/20 bg-violet-500/10 text-violet-300">
                 <svg class="h-7 w-7 stroke-current" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <rect x="7" y="7" width="10" height="10" rx="2"></rect>
@@ -596,8 +707,8 @@
               <p class="landing-muted text-xs font-black">STEP 04</p>
               <h3 class="mt-2 text-lg font-black">학습 모델 생성</h3>
               <p class="landing-muted mt-2 text-sm leading-6">서버에서 객체탐지 모델을 학습합니다.</p>
-            </article>
-            <article class="landing-soft rounded-2xl border p-4 shadow-sm">
+            </a>
+            <a href="{% url 'deployment:android_export' %}" class="workflow-card landing-soft rounded-2xl border p-4 shadow-sm" aria-label="STEP 05 스마트폰용 모델 생성 화면으로 이동">
               <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-pink-300/20 bg-pink-500/10 text-pink-300">
                 <svg class="h-7 w-7 stroke-current" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <rect x="7" y="3" width="10" height="18" rx="2.4"></rect>
@@ -610,8 +721,8 @@
               <p class="landing-muted text-xs font-black">STEP 05</p>
               <h3 class="mt-2 text-lg font-black">스마트폰용 모델 생성</h3>
               <p class="landing-muted mt-2 text-sm leading-6">Android용 TFLite 모델로 변환합니다.</p>
-            </article>
-            <article class="landing-soft rounded-2xl border p-4 shadow-sm">
+            </a>
+            <a href="{% url 'deployment:package_list' %}" class="workflow-card landing-soft rounded-2xl border p-4 shadow-sm" aria-label="STEP 06 스마트폰 적용 화면으로 이동">
               <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-300/20 bg-emerald-500/10 text-emerald-300">
                 <svg class="h-7 w-7 stroke-current" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <rect x="6" y="3" width="12" height="18" rx="2.4"></rect>
@@ -623,7 +734,7 @@
               <p class="landing-muted text-xs font-black">STEP 06</p>
               <h3 class="mt-2 text-lg font-black">스마트폰 적용</h3>
               <p class="landing-muted mt-2 text-sm leading-6">앱에서 모델을 다운로드하고 탐지합니다.</p>
-            </article>
+            </a>
           </div>
         </div>
       </div>

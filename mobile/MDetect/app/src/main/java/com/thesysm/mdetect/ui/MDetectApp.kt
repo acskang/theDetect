@@ -246,8 +246,14 @@ private fun LandingScreen(state: AppUiState, viewModel: MDetectViewModel) {
 
 @Composable
 private fun LoginScreen(state: AppUiState, viewModel: MDetectViewModel) {
-    var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    var username by remember(state.settings.username) { mutableStateOf(state.settings.username) }
+    var password by remember(state.settings.password) { mutableStateOf(state.settings.password) }
+    if (state.loginFailurePromptVisible) {
+        LoginFailureContinueDialog(
+            onConfirm = viewModel::continueAfterLoginFailure,
+            onDismiss = viewModel::dismissLoginFailurePrompt
+        )
+    }
     AuthScreenShell(title = "로그인", state = state) {
         AuthTextField(
             value = username,
@@ -428,7 +434,10 @@ private fun AppShell(title: String, state: AppUiState, viewModel: MDetectViewMod
             ) {
                 TextButton(onClick = { viewModel.navigate(AppScreen.HOME) }) { Text("Home") }
                 TextButton(onClick = { viewModel.navigate(AppScreen.CAMERA) }) { Text("Camera") }
-                TextButton(onClick = { viewModel.navigate(AppScreen.MODEL_UPDATE) }) { Text("Model") }
+                TextButton(
+                    onClick = { viewModel.navigate(AppScreen.MODEL_UPDATE) },
+                    enabled = !state.offlineDetectionAllowed
+                ) { Text("Model") }
                 TextButton(onClick = { viewModel.navigate(AppScreen.SETTINGS) }) { Text("Settings") }
             }
         }
@@ -470,7 +479,13 @@ private fun HomeScreen(state: AppUiState, viewModel: MDetectViewModel) {
                 InfoCard("Server Status", state.serverStatus)
             }
             item { Button(onClick = { viewModel.navigate(AppScreen.CAMERA) }, modifier = Modifier.fillMaxWidth()) { Text("Start Camera Detection") } }
-            item { Button(onClick = { viewModel.navigate(AppScreen.MODEL_UPDATE) }, modifier = Modifier.fillMaxWidth()) { Text("Model Update") } }
+            item {
+                Button(
+                    onClick = { viewModel.navigate(AppScreen.MODEL_UPDATE) },
+                    enabled = !state.offlineDetectionAllowed,
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Model Update") }
+            }
             item { Button(onClick = { viewModel.navigate(AppScreen.HISTORY) }, modifier = Modifier.fillMaxWidth()) { Text("Detection History") } }
             item { Button(onClick = { viewModel.navigate(AppScreen.SETTINGS) }, modifier = Modifier.fillMaxWidth()) { Text("Settings") } }
             item {
@@ -495,6 +510,21 @@ private fun ConfirmLogoutDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("취소") }
+        }
+    )
+}
+
+@Composable
+private fun LoginFailureContinueDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("로그인 실패") },
+        text = { Text("로그인 실패로 모델 최신버전을 확인할 수 없습니다. 진행할까요?") },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text("yes") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("no") }
         }
     )
 }
@@ -794,13 +824,13 @@ private fun compactDebug(value: String, maxLength: Int = 90): String {
 @Composable
 private fun SettingsScreen(state: AppUiState, viewModel: MDetectViewModel) {
     var serverUrl by remember(state.settings.serverUrl) { mutableStateOf(state.settings.serverUrl) }
-    var detectionMode by remember(state.settings.detectionMode) { mutableStateOf(state.settings.detectionMode) }
+    var detectionMode by remember(state.settings.detectionMode) { mutableStateOf(DetectionMode.ON_DEVICE) }
     var interval by remember(state.settings.frameIntervalMs) { mutableLongStateOf(state.settings.frameIntervalMs) }
     var confidence by remember(state.settings.confidenceThreshold) { mutableStateOf(state.settings.confidenceThreshold) }
     var iou by remember(state.settings.iouThreshold) { mutableStateOf(state.settings.iouThreshold) }
     var modeExpanded by remember { mutableStateOf(false) }
-    var intervalExpanded by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    val detectionModeOptions = listOf(DetectionMode.ON_DEVICE)
 
     if (showLogoutDialog) {
         ConfirmLogoutDialog(
@@ -826,27 +856,22 @@ private fun SettingsScreen(state: AppUiState, viewModel: MDetectViewModel) {
                         modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
                     ExposedDropdownMenu(expanded = modeExpanded, onDismissRequest = { modeExpanded = false }) {
-                        DetectionMode.entries.forEach { mode ->
+                        detectionModeOptions.forEach { mode ->
                             DropdownMenuItem(text = { Text(mode.name) }, onClick = { detectionMode = mode; modeExpanded = false })
                         }
                     }
                 }
             }
             item {
-                ExposedDropdownMenuBox(expanded = intervalExpanded, onExpandedChange = { intervalExpanded = !intervalExpanded }) {
+                ExposedDropdownMenuBox(expanded = false, onExpandedChange = {}) {
                     OutlinedTextField(
                         value = "${interval / 1000.0}s",
                         onValueChange = {},
                         readOnly = true,
+                        enabled = false,
                         label = { Text("Server Mode Interval") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = intervalExpanded) },
                         modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
-                    ExposedDropdownMenu(expanded = intervalExpanded, onDismissRequest = { intervalExpanded = false }) {
-                        listOf(500L, 1000L, 2000L).forEach { value ->
-                            DropdownMenuItem(text = { Text("${value / 1000.0}s") }, onClick = { interval = value; intervalExpanded = false })
-                        }
-                    }
                 }
             }
             item { Text("Confidence Threshold: ${"%.2f".format(confidence)}"); Slider(value = confidence, onValueChange = { confidence = it }, valueRange = 0.05f..0.95f) }
